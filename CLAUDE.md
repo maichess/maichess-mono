@@ -30,3 +30,7 @@ WartRemover static analysis runs automatically during `sbt compile` (all `Warts.
 - Do not write comments unless absolutely necessary (e.g., explaining non-obvious algorithms or critical warnings).
 - Prefer early returns over nested conditionals.
 - Before finishing, scan for duplicated logic and extract it.
+
+# Development
+
+- Only change tests when requirements for this specific test change. Don't change tests to make them pass.
