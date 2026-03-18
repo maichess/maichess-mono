@@ -87,10 +87,10 @@ object TextUI:
 
   private def buildKeyMap(terminal: Terminal): KeyMap[String] =
     val km = new KeyMap[String]()
-    val _ = km.bind("up",    KeyMap.key(terminal, Capability.key_up))
-    val _ = km.bind("down",  KeyMap.key(terminal, Capability.key_down))
-    val _ = km.bind("left",  KeyMap.key(terminal, Capability.key_left))
-    val _ = km.bind("right", KeyMap.key(terminal, Capability.key_right))
+    val _ = km.bind("up",    "\u001b[A", KeyMap.key(terminal, Capability.key_up))
+    val _ = km.bind("down",  "\u001b[B", KeyMap.key(terminal, Capability.key_down))
+    val _ = km.bind("right", "\u001b[C", KeyMap.key(terminal, Capability.key_right))
+    val _ = km.bind("left",  "\u001b[D", KeyMap.key(terminal, Capability.key_left))
     val _ = km.bind("enter", "\r", "\n")
     val _ = km.bind("esc",   KeyMap.esc())
     km
