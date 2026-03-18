@@ -4,7 +4,9 @@ import org.maichess.mono.engine.*
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.*
 
-import scala.io.StdIn
+import org.jline.keymap.{BindingReader, KeyMap}
+import org.jline.terminal.{Terminal, TerminalBuilder}
+import org.jline.utils.InfoCmp.Capability
 
 enum Direction:
   case Up, Down, Left, Right
@@ -83,44 +85,100 @@ object TextUI:
       else ""
     if ansiPrefix.isEmpty then symbol else ansiPrefix + symbol + "\u001b[0m"
 
-  /** Parses "e2e4" or "e2 e4" into (from, to) squares. */
-  def parseMove(input: String): Either[String, (Square, Square)] =
-    val clean = input.trim.replace(" ", "")
-    if clean.length < 4 then Left("Invalid input: " + input)
-    else
-      for
-        from <- Square.fromAlgebraic(clean.take(2)).toRight("Invalid square: " + clean.take(2))
-        to   <- Square.fromAlgebraic(clean.slice(2, 4)).toRight("Invalid square: " + clean.slice(2, 4))
-      yield (from, to)
+  private def buildKeyMap(terminal: Terminal): KeyMap[String] =
+    val km = new KeyMap[String]()
+    val _ = km.bind("up",    KeyMap.key(terminal, Capability.key_up))
+    val _ = km.bind("down",  KeyMap.key(terminal, Capability.key_down))
+    val _ = km.bind("left",  KeyMap.key(terminal, Capability.key_left))
+    val _ = km.bind("right", KeyMap.key(terminal, Capability.key_right))
+    val _ = km.bind("enter", "\r", "\n")
+    val _ = km.bind("esc",   KeyMap.esc())
+    km
 
-  /** Runs the interactive game loop. The only impure function in the project. */
-  def gameLoop(state: GameState, ctrl: GameController): Unit =
-    println(renderBoard(state.current.board, Color.White, None, None, Set.empty))
+  private def trySelectPiece(
+    cursor: Square,
+    state: GameState
+  ): (GameState, CursorState) =
+    val raw    = StandardRules.legalMoves(state.current, cursor)
+    val deduped = raw
+      .groupBy(_.to)
+      .values
+      .flatMap(_.headOption)
+      .toIndexedSeq
+      .sortBy(m => m.to.rank.toInt * 8 + m.to.file.toInt)
+    if deduped.isEmpty then (state, CursorState.Navigating(cursor))
+    else (state, CursorState.PieceSelected(cursor, 0, deduped))
+
+  private def applySelectedMove(
+    move: Move,
+    from: Square,
+    state: GameState,
+    ctrl: GameController
+  ): (GameState, CursorState) =
+    ctrl.applyMove(state, move) match
+      case Right(newState) => (newState, CursorState.Navigating(move.to))
+      case Left(_)         => (state, CursorState.Navigating(from))
+
+  private def handleKey(
+    key: Option[String],
+    state: GameState,
+    cs: CursorState,
+    ctrl: GameController
+  ): (GameState, CursorState) =
+    cs match
+      case CursorState.Navigating(cursor) =>
+        key match
+          case Some("up")    => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Up)))
+          case Some("down")  => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Down)))
+          case Some("left")  => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Left)))
+          case Some("right") => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Right)))
+          case Some("enter") => trySelectPiece(cursor, state)
+          case _             => (state, cs)
+      case CursorState.PieceSelected(from, index, targets) =>
+        key match
+          case Some("up") | Some("left") =>
+            (state, CursorState.PieceSelected(from, moveCursorTargets(targets, index, Direction.Up), targets))
+          case Some("down") | Some("right") =>
+            (state, CursorState.PieceSelected(from, moveCursorTargets(targets, index, Direction.Down), targets))
+          case Some("enter") =>
+            applySelectedMove(targets(index), from, state, ctrl)
+          case Some("esc") =>
+            (state, CursorState.Navigating(from))
+          case _ =>
+            (state, cs)
+
+  @annotation.tailrec
+  private def go(
+    state: GameState,
+    cs: CursorState,
+    ctrl: GameController,
+    terminal: Terminal,
+    bindingReader: BindingReader,
+    keyMap: KeyMap[String]
+  ): Unit =
+    val _ = terminal.puts(Capability.clear_screen)
+    val _ = terminal.writer().println(
+      renderBoard(state.current.board, Color.White, Some(cursorSquare(cs)), selectedSquare(cs), targetSquares(cs))
+    )
     ctrl.gameResult(state) match
       case Some(result) =>
-        println(resultMessage(result))
+        val _ = terminal.writer().println(resultMessage(result))
       case None =>
-        val turnLabel = if state.current.turn == Color.White then "White" else "Black"
-        val checkNote = if StandardRules.isCheck(state.current) then " — CHECK!" else ""
-        println(turnLabel + " to move" + checkNote + ". Enter move (e.g. e2e4):")
-        val line = StdIn.readLine()
-        parseMove(line) match
-          case Left(err)         =>
-            println("Parse error: " + err)
-            gameLoop(state, ctrl)
-          case Right((from, to)) =>
-            val chosen = StandardRules.legalMoves(state.current, from).find(_.to == to)
-            chosen match
-              case None       =>
-                println("Illegal move — try again.")
-                gameLoop(state, ctrl)
-              case Some(move) =>
-                ctrl.applyMove(state, move) match
-                  case Left(err)       =>
-                    println("Error: " + err.reason)
-                    gameLoop(state, ctrl)
-                  case Right(newState) =>
-                    gameLoop(newState, ctrl)
+        val turnLabel: String = if state.current.turn == Color.White then "White" else "Black"
+        val checkNote: String = if StandardRules.isCheck(state.current) then " — CHECK!" else ""
+        val prompt: String = turnLabel + " to move" + checkNote + "  (arrows to navigate, Enter to select/confirm, Esc to cancel)"
+        val _ = terminal.writer().println(prompt)
+        val key = Option(bindingReader.readBinding(keyMap))
+        val (newState, newCs): (GameState, CursorState) = handleKey(key, state, cs, ctrl)
+        go(newState, newCs, ctrl, terminal, bindingReader, keyMap)
+
+  def gameLoop(state: GameState, ctrl: GameController, terminal: Terminal): Unit =
+    val keyMap        = buildKeyMap(terminal)
+    val bindingReader = BindingReader(terminal.reader())
+    val initialCursor: Square =
+      Square.fromAlgebraic("e1").orElse(Square.all.headOption).fold(Square.all(0))(identity)
+    try go(state, CursorState.Navigating(initialCursor), ctrl, terminal, bindingReader, keyMap)
+    finally terminal.close()
 
   private def pieceSymbol(piece: Piece): String =
     val s = piece.pieceType match
@@ -132,13 +190,20 @@ object TextUI:
       case PieceType.Pawn   => "P"
     if piece.color == Color.White then s else s.toLowerCase
 
+  private def drawReasonName(reason: DrawReason): String = reason match
+    case DrawReason.FiftyMoveRule         => "FiftyMoveRule"
+    case DrawReason.InsufficientMaterial  => "InsufficientMaterial"
+    case DrawReason.ThreefoldRepetition   => "ThreefoldRepetition"
+    case DrawReason.Agreement             => "Agreement"
+
   private def resultMessage(result: GameResult): String = result match
     case GameResult.Checkmate(Color.White) => "Checkmate! White wins."
     case GameResult.Checkmate(Color.Black) => "Checkmate! Black wins."
     case GameResult.Stalemate              => "Stalemate — draw."
-    case GameResult.Draw(reason)           => "Draw: " + reason.toString
+    case GameResult.Draw(reason)           => "Draw: " + drawReasonName(reason)
 
 @main def runGame(): Unit =
-  val ctrl = GameController(StandardRules)
-  println("Welcome to MaiChess!")
-  TextUI.gameLoop(ctrl.newGame(), ctrl)
+  val ctrl     = GameController(StandardRules)
+  val terminal = TerminalBuilder.terminal()
+  val _        = terminal.writer().println("Welcome to MaiChess!")
+  TextUI.gameLoop(ctrl.newGame(), ctrl, terminal)
