@@ -6,10 +6,8 @@ def moduleSettings(pkg: String): Seq[Def.Setting[?]] = Seq(
   idePackagePrefix.withRank(KeyRanks.Invisible) := Some(pkg)
 )
 
-// Coverage thresholds for production modules (model, rules, engine).
-// ui-text is excluded — it's I/O that can't be unit-tested without mocking stdin.
 val coverageSettings: Seq[Def.Setting[?]] = Seq(
-  coverageMinimumStmtTotal := 70,
+  coverageMinimumStmtTotal := 100,
   coverageFailOnMinimum    := true
 )
 
@@ -33,7 +31,7 @@ lazy val engine = (project in file("modules/engine"))
 lazy val uiText = (project in file("modules/ui-text"))
   .dependsOn(engine)
   .settings(moduleSettings("org.maichess.mono.ui"): _*)
-  .settings(coverageEnabled := false)  // I/O module — excluded from coverage
+  .settings(coverageEnabled := false)
   .settings(name := "maichess-ui-text")
 
 lazy val tests = (project in file("modules/tests"))
