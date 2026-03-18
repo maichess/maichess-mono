@@ -5,7 +5,7 @@ import org.maichess.mono.model.*
 import org.maichess.mono.rules.*
 
 import org.jline.keymap.{BindingReader, KeyMap}
-import org.jline.terminal.{Terminal, TerminalBuilder}
+import org.jline.terminal.{Attributes, Terminal, TerminalBuilder}
 import org.jline.utils.InfoCmp.Capability
 
 enum Direction:
@@ -180,8 +180,11 @@ object TextUI:
     val keyMap        = buildKeyMap(terminal)
     val bindingReader = BindingReader(terminal.reader())
     val initialCursor = Square.fromAlgebraic("e1").getOrElse(Square.all(0))
+    val prevAttrs: Attributes = terminal.enterRawMode()
     try go(state, CursorState.Navigating(initialCursor), ctrl, terminal, bindingReader, keyMap)
-    finally terminal.close()
+    finally
+      terminal.setAttributes(prevAttrs)
+      terminal.close()
 
   private def pieceSymbol(piece: Piece): String =
     val s = piece.pieceType match
