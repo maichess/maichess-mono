@@ -44,3 +44,29 @@ class TextUISuite extends FunSuite:
       TextUI.targetSquares(CursorState.PieceSelected(sq("e2"), 0, targets)),
       Set(sq("e4"), sq("e3"))
     )
+
+  // ── moveCursorFree ──────────────────────────────────────────────────────────
+
+  test("moveCursorFree Up increases rank"):
+    assertEquals(TextUI.moveCursorFree(sq("e2"), Direction.Up), sq("e3"))
+
+  test("moveCursorFree Down decreases rank"):
+    assertEquals(TextUI.moveCursorFree(sq("e3"), Direction.Down), sq("e2"))
+
+  test("moveCursorFree Right increases file"):
+    assertEquals(TextUI.moveCursorFree(sq("e2"), Direction.Right), sq("f2"))
+
+  test("moveCursorFree Left decreases file"):
+    assertEquals(TextUI.moveCursorFree(sq("e2"), Direction.Left), sq("d2"))
+
+  test("moveCursorFree Up wraps from rank 8 to rank 1"):
+    assertEquals(TextUI.moveCursorFree(sq("e8"), Direction.Up), sq("e1"))
+
+  test("moveCursorFree Down wraps from rank 1 to rank 8"):
+    assertEquals(TextUI.moveCursorFree(sq("e1"), Direction.Down), sq("e8"))
+
+  test("moveCursorFree Right wraps from h-file to a-file"):
+    assertEquals(TextUI.moveCursorFree(sq("h4"), Direction.Right), sq("a4"))
+
+  test("moveCursorFree Left wraps from a-file to h-file"):
+    assertEquals(TextUI.moveCursorFree(sq("a4"), Direction.Left), sq("h4"))

@@ -27,6 +27,20 @@ object TextUI:
     case CursorState.Navigating(_)                => Set.empty
     case CursorState.PieceSelected(_, _, targets) => targets.map(_.to).toSet
 
+  def moveCursorFree(cursor: Square, dir: Direction): Square =
+    val df = dir match
+      case Direction.Left  => -1
+      case Direction.Right =>  1
+      case _               =>  0
+    val dr = dir match
+      case Direction.Up   =>  1
+      case Direction.Down => -1
+      case _              =>  0
+    val newFile = (cursor.file.toInt + df + 8) % 8
+    val newRank = (cursor.rank.toInt + dr + 8) % 8
+    (for f <- File.fromInt(newFile); r <- Rank.fromInt(newRank) yield Square(f, r))
+      .getOrElse(cursor)
+
   /** Renders the board from the given perspective (rank 8 at top for White). */
   def renderBoard(board: Board, perspective: Color): String =
     val rankRange = if perspective == Color.White then (7 to 0 by -1) else (0 to 7)
