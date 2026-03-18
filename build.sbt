@@ -33,7 +33,12 @@ lazy val tests = (project in file("modules/tests"))
     libraryDependencies ++= Seq(
       "org.scalameta" %% "munit" % "1.0.4" % Test
     ),
-    testFrameworks += new TestFramework("munit.Framework")
+    testFrameworks += new TestFramework("munit.Framework"),
+    Test / wartremoverErrors   := Nil,
+    Test / wartremoverWarnings := Nil,
+    Test / scalacOptions ~= { opts =>
+      opts.filterNot(o => o.startsWith("-P:wartremover:") || o.startsWith("-Xplugin"))
+    }
   )
 
 lazy val root = (project in file("."))
