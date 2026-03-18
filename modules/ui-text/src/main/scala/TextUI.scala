@@ -3,6 +3,7 @@ package org.maichess.mono.ui
 import org.maichess.mono.engine.*
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.*
+
 import scala.io.StdIn
 
 object TextUI:
