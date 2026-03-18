@@ -6,7 +6,26 @@ import org.maichess.mono.rules.*
 
 import scala.io.StdIn
 
+enum Direction:
+  case Up, Down, Left, Right
+
+enum CursorState:
+  case Navigating(cursor: Square)
+  case PieceSelected(from: Square, index: Int, targets: IndexedSeq[Move])
+
 object TextUI:
+
+  def cursorSquare(cs: CursorState): Square = cs match
+    case CursorState.Navigating(cursor)               => cursor
+    case CursorState.PieceSelected(_, index, targets) => targets(index).to
+
+  def selectedSquare(cs: CursorState): Option[Square] = cs match
+    case CursorState.Navigating(_)             => None
+    case CursorState.PieceSelected(from, _, _) => Some(from)
+
+  def targetSquares(cs: CursorState): Set[Square] = cs match
+    case CursorState.Navigating(_)                => Set.empty
+    case CursorState.PieceSelected(_, _, targets) => targets.map(_.to).toSet
 
   /** Renders the board from the given perspective (rank 8 at top for White). */
   def renderBoard(board: Board, perspective: Color): String =
