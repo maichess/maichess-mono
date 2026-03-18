@@ -41,6 +41,12 @@ object TextUI:
     (for f <- File.fromInt(newFile); r <- Rank.fromInt(newRank) yield Square(f, r))
       .getOrElse(cursor)
 
+  def moveCursorTargets(targets: IndexedSeq[Move], index: Int, dir: Direction): Int =
+    val delta = dir match
+      case Direction.Right | Direction.Down => 1
+      case Direction.Left  | Direction.Up   => -1
+    (index + delta + targets.length) % targets.length
+
   /** Renders the board from the given perspective (rank 8 at top for White). */
   def renderBoard(board: Board, perspective: Color): String =
     val rankRange = if perspective == Color.White then (7 to 0 by -1) else (0 to 7)

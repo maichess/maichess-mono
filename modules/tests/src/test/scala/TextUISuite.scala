@@ -70,3 +70,29 @@ class TextUISuite extends FunSuite:
 
   test("moveCursorFree Left wraps from a-file to h-file"):
     assertEquals(TextUI.moveCursorFree(sq("a4"), Direction.Left), sq("h4"))
+
+  // ── moveCursorTargets ───────────────────────────────────────────────────────
+
+  test("moveCursorTargets Down advances index"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 0, Direction.Down), 1)
+
+  test("moveCursorTargets Up retreats index"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 1, Direction.Up), 0)
+
+  test("moveCursorTargets Down wraps from last to first"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 1, Direction.Down), 0)
+
+  test("moveCursorTargets Up wraps from first to last"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 0, Direction.Up), 1)
+
+  test("moveCursorTargets Right advances index"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 0, Direction.Right), 1)
+
+  test("moveCursorTargets Left retreats index"):
+    val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
+    assertEquals(TextUI.moveCursorTargets(targets, 1, Direction.Left), 0)
