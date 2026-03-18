@@ -9,13 +9,13 @@ class RulesSuite extends FunSuite:
   def sq(alg: String): Square =
     Square.fromAlgebraic(alg).getOrElse(throw new AssertionError(s"Invalid square: $alg"))
 
-  // Back-rank mate: white king h1, white rook g1, black queen g2, black rooks a8+b8
-  // It's black's turn; black queen gives checkmate at h2 is not it — use a simple position:
-  // White king a1, black queen b3, black king c3 → white is in checkmate (Qb3#)
+  // White king a1, black queen b2, black king c3:
+  //   Qb2 attacks a1 diagonally (check).
+  //   a2 covered by Qb2 (same rank), b1 by Qb2 (same file), b2 defended by Kc3.
   test("isCheckmate detects back-rank mate"):
     val pieces = Map(
       sq("a1") -> Piece(Color.White, PieceType.King),
-      sq("b3") -> Piece(Color.Black, PieceType.Queen),
+      sq("b2") -> Piece(Color.Black, PieceType.Queen),
       sq("c3") -> Piece(Color.Black, PieceType.King)
     )
     val s = Situation(Board(pieces), Color.White, CastlingRights.none, None, 0, 1)

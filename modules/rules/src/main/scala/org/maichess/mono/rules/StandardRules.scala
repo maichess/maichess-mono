@@ -37,7 +37,7 @@ object StandardRules extends RuleSet:
       .fold(false)(sq => isAttackedBy(sit.board, sq, sit.turn.opposite))
 
   def isCheckmate(sit: Situation): Boolean =
-    allLegalMoves(sit).isEmpty
+    isCheck(sit) && allLegalMoves(sit).isEmpty
 
   def isStalemate(sit: Situation): Boolean =
     !isCheck(sit) && allLegalMoves(sit).isEmpty
@@ -134,49 +134,48 @@ object StandardRules extends RuleSet:
   private def squaresEmpty(board: Board, squares: List[String]): Boolean =
     squares.forall(alg => Square.fromAlgebraic(alg).fold(false)(sq => board.pieceAt(sq).isEmpty))
 
+  private def castleMoves(
+    sit: Situation,
+    from: Square,
+    kingSideRight: Boolean,
+    queenSideRight: Boolean,
+    kingSquareAlg: String,
+    kingSideSquares: List[String],
+    queenSideSquares: List[String],
+    kingSideCoords: (String, String, String, String),
+    queenSideCoords: (String, String, String, String)
+  ): List[CastlingMove] =
+    val expected = Square.fromAlgebraic(kingSquareAlg).getOrElse(from)
+
+    def makeCastle(rights: Boolean, clearSquares: List[String], coords: (String, String, String, String)): Option[CastlingMove] =
+      for
+        _ <- Option.when(rights && from == expected && squaresEmpty(sit.board, clearSquares))(())
+        kf <- Square.fromAlgebraic(coords._1)
+        kt <- Square.fromAlgebraic(coords._2)
+        rf <- Square.fromAlgebraic(coords._3)
+        rt <- Square.fromAlgebraic(coords._4)
+      yield CastlingMove(kf, kt, rf, rt)
+
+    List(
+      makeCastle(kingSideRight,  kingSideSquares,  kingSideCoords),
+      makeCastle(queenSideRight, queenSideSquares, queenSideCoords)
+    ).flatten
+
   private def whiteCastles(sit: Situation, from: Square): List[CastlingMove] =
-    val kingSide = for
-      _ <- Option.when(sit.castlingRights.whiteKingSide &&
-                       from == Square.fromAlgebraic("e1").getOrElse(from) &&
-                       squaresEmpty(sit.board, List("f1", "g1")))(())
-      kf <- Square.fromAlgebraic("e1")
-      kt <- Square.fromAlgebraic("g1")
-      rf <- Square.fromAlgebraic("h1")
-      rt <- Square.fromAlgebraic("f1")
-    yield CastlingMove(kf, kt, rf, rt)
-
-    val queenSide = for
-      _ <- Option.when(sit.castlingRights.whiteQueenSide &&
-                       squaresEmpty(sit.board, List("b1", "c1", "d1")))(())
-      kf <- Square.fromAlgebraic("e1")
-      kt <- Square.fromAlgebraic("c1")
-      rf <- Square.fromAlgebraic("a1")
-      rt <- Square.fromAlgebraic("d1")
-    yield CastlingMove(kf, kt, rf, rt)
-
-    List(kingSide, queenSide).flatten
+    castleMoves(sit, from,
+      sit.castlingRights.whiteKingSide, sit.castlingRights.whiteQueenSide,
+      "e1",
+      List("f1", "g1"), List("b1", "c1", "d1"),
+      ("e1", "g1", "h1", "f1"), ("e1", "c1", "a1", "d1")
+    )
 
   private def blackCastles(sit: Situation, from: Square): List[CastlingMove] =
-    val kingSide = for
-      _ <- Option.when(sit.castlingRights.blackKingSide &&
-                       from == Square.fromAlgebraic("e8").getOrElse(from) &&
-                       squaresEmpty(sit.board, List("f8", "g8")))(())
-      kf <- Square.fromAlgebraic("e8")
-      kt <- Square.fromAlgebraic("g8")
-      rf <- Square.fromAlgebraic("h8")
-      rt <- Square.fromAlgebraic("f8")
-    yield CastlingMove(kf, kt, rf, rt)
-
-    val queenSide = for
-      _ <- Option.when(sit.castlingRights.blackQueenSide &&
-                       squaresEmpty(sit.board, List("b8", "c8", "d8")))(())
-      kf <- Square.fromAlgebraic("e8")
-      kt <- Square.fromAlgebraic("c8")
-      rf <- Square.fromAlgebraic("a8")
-      rt <- Square.fromAlgebraic("d8")
-    yield CastlingMove(kf, kt, rf, rt)
-
-    List(kingSide, queenSide).flatten
+    castleMoves(sit, from,
+      sit.castlingRights.blackKingSide, sit.castlingRights.blackQueenSide,
+      "e8",
+      List("f8", "g8"), List("b8", "c8", "d8"),
+      ("e8", "g8", "h8", "f8"), ("e8", "c8", "a8", "d8")
+    )
 
   // ── Check detection ───────────────────────────────────────────────────────
   private def kingSquare(board: Board, color: Color): Option[Square] =
