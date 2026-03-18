@@ -5,5 +5,7 @@ ThisBuild / scalaVersion := "3.8.2"
 lazy val root = (project in file("."))
   .settings(
     name := "maichess-mono",
-    idePackagePrefix := Some("org.maichess.mono")
+    idePackagePrefix.withRank(KeyRanks.Invisible) := Some("org.maichess.mono")
   )
+
+wartremoverErrors ++= Warts.unsafe
