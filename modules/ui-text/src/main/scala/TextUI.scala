@@ -116,6 +116,13 @@ object TextUI:
       case Right(newState) => (newState, CursorState.Navigating(move.to))
       case Left(_)         => (state, CursorState.Navigating(from))
 
+  private def moveCursorByKey(cursor: Square, key: String): Square = key match
+    case "up"    => moveCursorFree(cursor, Direction.Up)
+    case "down"  => moveCursorFree(cursor, Direction.Down)
+    case "left"  => moveCursorFree(cursor, Direction.Left)
+    case "right" => moveCursorFree(cursor, Direction.Right)
+    case _       => cursor
+
   private def handleKey(
     key: Option[String],
     state: GameState,
@@ -125,12 +132,9 @@ object TextUI:
     cs match
       case CursorState.Navigating(cursor) =>
         key match
-          case Some("up")    => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Up)))
-          case Some("down")  => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Down)))
-          case Some("left")  => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Left)))
-          case Some("right") => (state, CursorState.Navigating(moveCursorFree(cursor, Direction.Right)))
           case Some("enter") => trySelectPiece(cursor, state)
-          case _             => (state, cs)
+          case Some(k)       => (state, CursorState.Navigating(moveCursorByKey(cursor, k)))
+          case None          => (state, cs)
       case CursorState.PieceSelected(from, index, targets) =>
         key match
           case Some("up") | Some("left") =>
@@ -157,14 +161,17 @@ object TextUI:
     val _ = terminal.writer().println(
       renderBoard(state.current.board, Color.White, Some(cursorSquare(cs)), selectedSquare(cs), targetSquares(cs))
     )
+    val _ = terminal.flush()
     ctrl.gameResult(state) match
       case Some(result) =>
         val _ = terminal.writer().println(resultMessage(result))
+        val _ = terminal.flush()
       case None =>
         val turnLabel: String = if state.current.turn == Color.White then "White" else "Black"
         val checkNote: String = if StandardRules.isCheck(state.current) then " — CHECK!" else ""
         val prompt: String = turnLabel + " to move" + checkNote + "  (arrows to navigate, Enter to select/confirm, Esc to cancel)"
         val _ = terminal.writer().println(prompt)
+        val _ = terminal.flush()
         val key = Option(bindingReader.readBinding(keyMap))
         val (newState, newCs): (GameState, CursorState) = handleKey(key, state, cs, ctrl)
         go(newState, newCs, ctrl, terminal, bindingReader, keyMap)
@@ -172,8 +179,7 @@ object TextUI:
   def gameLoop(state: GameState, ctrl: GameController, terminal: Terminal): Unit =
     val keyMap        = buildKeyMap(terminal)
     val bindingReader = BindingReader(terminal.reader())
-    val initialCursor: Square =
-      Square.fromAlgebraic("e1").orElse(Square.all.headOption).fold(Square.all(0))(identity)
+    val initialCursor = Square.fromAlgebraic("e1").getOrElse(Square.all(0))
     try go(state, CursorState.Navigating(initialCursor), ctrl, terminal, bindingReader, keyMap)
     finally terminal.close()
 
