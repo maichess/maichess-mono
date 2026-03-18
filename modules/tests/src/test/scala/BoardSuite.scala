@@ -41,3 +41,23 @@ class BoardSuite extends FunSuite:
 
   test("Board.empty has no pieces"):
     assertEquals(Board.empty.pieces.size, 0)
+
+  test("Board.applyMove promotes pawn when NormalMove carries promotion"):
+    val from = Square.fromAlgebraic("e7")
+    val to   = Square.fromAlgebraic("e8")
+    val result = for
+      f <- from
+      t <- to
+    yield
+      val board = Board(Map(f -> Piece(Color.White, PieceType.Pawn)))
+      board.applyMove(NormalMove(f, t, Some(PieceType.Queen))).pieceAt(t)
+    assertEquals(result, Some(Some(Piece(Color.White, PieceType.Queen))))
+
+  test("Board.applyMove from empty source square leaves target empty"):
+    val from = Square.fromAlgebraic("e4")  // empty board
+    val to   = Square.fromAlgebraic("e5")
+    val result = for
+      f <- from
+      t <- to
+    yield Board.empty.applyMove(NormalMove(f, t)).pieceAt(t)
+    assertEquals(result, Some(None))

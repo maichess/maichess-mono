@@ -44,3 +44,32 @@ class RulesSuite extends FunSuite:
   test("fifty-move rule does not trigger at halfMoveClock 99"):
     val s = Situation.standard.copy(halfMoveClock = 99)
     assert(!StandardRules.isFiftyMoveRule(s))
+
+  def kings: Map[Square, Piece] = Map(
+    sq("e1") -> Piece(Color.White, PieceType.King),
+    sq("e8") -> Piece(Color.Black, PieceType.King)
+  )
+
+  test("isInsufficientMaterial: single lone bishop"):
+    val s = Situation(Board(kings + (sq("d4") -> Piece(Color.White, PieceType.Bishop))),
+                      Color.White, CastlingRights.none, None, 0, 1)
+    assert(StandardRules.isInsufficientMaterial(s))
+
+  test("isInsufficientMaterial: single lone knight"):
+    val s = Situation(Board(kings + (sq("d4") -> Piece(Color.White, PieceType.Knight))),
+                      Color.White, CastlingRights.none, None, 0, 1)
+    assert(StandardRules.isInsufficientMaterial(s))
+
+  test("isInsufficientMaterial: two bishops of opposite colors"):
+    val s = Situation(Board(kings
+      + (sq("c1") -> Piece(Color.White, PieceType.Bishop))
+      + (sq("f8") -> Piece(Color.Black, PieceType.Bishop))),
+      Color.White, CastlingRights.none, None, 0, 1)
+    assert(StandardRules.isInsufficientMaterial(s))
+
+  test("isInsufficientMaterial: false for two knights"):
+    val s = Situation(Board(kings
+      + (sq("b1") -> Piece(Color.White, PieceType.Knight))
+      + (sq("g8") -> Piece(Color.Black, PieceType.Knight))),
+      Color.White, CastlingRights.none, None, 0, 1)
+    assert(!StandardRules.isInsufficientMaterial(s))

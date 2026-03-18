@@ -144,3 +144,70 @@ class GameControllerSuite extends FunSuite:
       case Right(s) =>
         assertEquals(s.current.enPassantSquare, Square.fromAlgebraic("e3"))
       case Left(e) => fail(e.reason)
+
+  test("applyMove clears en passant square and resets halfMoveClock on en passant capture"):
+    val pieces = Map(
+      sq("e5") -> Piece(Color.White, PieceType.Pawn),
+      sq("d5") -> Piece(Color.Black, PieceType.Pawn),
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("e8") -> Piece(Color.Black, PieceType.King)
+    )
+    val state = GameState(Nil, Situation(Board(pieces), Color.White, CastlingRights.none, Some(sq("d6")), 5, 1))
+    val epMove = EnPassantMove(sq("e5"), sq("d6"), sq("d5"))
+    ctrl.applyMove(state, epMove) match
+      case Right(s) =>
+        assertEquals(s.current.enPassantSquare, None)
+        assertEquals(s.current.halfMoveClock,    0)
+      case Left(e) => fail(e.reason)
+
+  test("applyMove does not change castling rights when non-corner white rook moves"):
+    val pieces = Map(
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("b1") -> Piece(Color.White, PieceType.Rook),
+      sq("e8") -> Piece(Color.Black, PieceType.King)
+    )
+    val state = GameState(Nil, Situation(Board(pieces), Color.White, CastlingRights.all, None, 0, 1))
+    ctrl.applyMove(state, move("b1", "b3")) match
+      case Right(s) =>
+        assertEquals(s.current.castlingRights.whiteKingSide,  true)
+        assertEquals(s.current.castlingRights.whiteQueenSide, true)
+      case Left(e) => fail(e.reason)
+
+  test("applyMove revokes black queen-side castling right when a8 rook moves"):
+    val pieces = Map(
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("e8") -> Piece(Color.Black, PieceType.King),
+      sq("a8") -> Piece(Color.Black, PieceType.Rook)
+    )
+    val state = GameState(Nil, Situation(Board(pieces), Color.Black, CastlingRights.all, None, 0, 1))
+    ctrl.applyMove(state, move("a8", "a6")) match
+      case Right(s) =>
+        assertEquals(s.current.castlingRights.blackQueenSide, false)
+        assertEquals(s.current.castlingRights.blackKingSide,  true)
+      case Left(e) => fail(e.reason)
+
+  test("applyMove revokes black king-side castling right when h8 rook moves"):
+    val pieces = Map(
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("e8") -> Piece(Color.Black, PieceType.King),
+      sq("h8") -> Piece(Color.Black, PieceType.Rook)
+    )
+    val state = GameState(Nil, Situation(Board(pieces), Color.Black, CastlingRights.all, None, 0, 1))
+    ctrl.applyMove(state, move("h8", "h6")) match
+      case Right(s) =>
+        assertEquals(s.current.castlingRights.blackKingSide,  false)
+        assertEquals(s.current.castlingRights.blackQueenSide, true)
+      case Left(e) => fail(e.reason)
+
+  test("applyMove does not change castling rights when non-corner black rook moves"):
+    val pieces = Map(
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("e8") -> Piece(Color.Black, PieceType.King),
+      sq("b8") -> Piece(Color.Black, PieceType.Rook)
+    )
+    val state = GameState(Nil, Situation(Board(pieces), Color.Black, CastlingRights.all, None, 0, 1))
+    ctrl.applyMove(state, move("b8", "b6")) match
+      case Right(s) =>
+        assertEquals(s.current.castlingRights.blackKingSide,  true)
+        assertEquals(s.current.castlingRights.blackQueenSide, true)
+      case Left(e) => fail(e.reason)

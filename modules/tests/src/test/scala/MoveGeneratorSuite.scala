@@ -96,3 +96,31 @@ class MoveGeneratorSuite extends FunSuite:
     val s = sit(pieces, Color.White, CastlingRights.all)
     val moves = StandardRules.legalMoves(s, sq("e1"))
     assert(!moves.exists(m => m.isInstanceOf[CastlingMove] && m.to == sq("g1")))
+
+  test("Pawn on 7th rank generates 4 promotion moves via push"):
+    // White pawn on e7, nothing blocking e8
+    val s     = sit(Map(sq("e7") -> Piece(Color.White, PieceType.Pawn)))
+    val moves = StandardRules.legalMoves(s, sq("e7"))
+    val promos = moves.collect { case NormalMove(_, to, Some(pt)) => pt }
+    assertEquals(promos.toSet, Set(PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight))
+
+  test("Pawn diagonal capture on promotion rank generates 4 promotion captures"):
+    // White pawn on e7, black rook on f8 to capture
+    val pieces = Map(
+      sq("e7") -> Piece(Color.White, PieceType.Pawn),
+      sq("f8") -> Piece(Color.Black, PieceType.Rook)
+    )
+    val s     = sit(pieces)
+    val moves = StandardRules.legalMoves(s, sq("e7"))
+    val capPromos = moves.collect { case NormalMove(_, to, Some(pt)) if to == sq("f8") => pt }
+    assertEquals(capPromos.toSet, Set(PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight))
+
+  test("Pawn diagonal capture (non-promotion) is included in legal moves"):
+    // White pawn on e4, black pawn on d5
+    val pieces = Map(
+      sq("e4") -> Piece(Color.White, PieceType.Pawn),
+      sq("d5") -> Piece(Color.Black, PieceType.Pawn)
+    )
+    val s     = sit(pieces)
+    val moves = StandardRules.legalMoves(s, sq("e4"))
+    assert(moves.exists(m => m.to == sq("d5")))
