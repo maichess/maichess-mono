@@ -101,13 +101,10 @@ object TextUI:
   ): (GameState, CursorState) =
     val raw    = StandardRules.legalMoves(state.current, cursor)
     val deduped = raw
-      .groupBy(_.to)
-      .values
-      .flatMap(_.headOption)
-      .toIndexedSeq
+      .distinctBy(_.to)
       .sortBy(m => m.to.rank.toInt * 8 + m.to.file.toInt)
     if deduped.isEmpty then (state, CursorState.Navigating(cursor))
-    else (state, CursorState.PieceSelected(cursor, 0, deduped))
+    else (state, CursorState.PieceSelected(cursor, 0, deduped.toIndexedSeq))
 
   private def applySelectedMove(
     move: Move,
