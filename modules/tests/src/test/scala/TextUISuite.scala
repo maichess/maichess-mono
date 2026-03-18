@@ -96,3 +96,26 @@ class TextUISuite extends FunSuite:
   test("moveCursorTargets Left retreats index"):
     val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
     assertEquals(TextUI.moveCursorTargets(targets, 1, Direction.Left), 0)
+
+  // ── renderBoard ─────────────────────────────────────────────────────────────
+
+  test("renderBoard wraps cursor square in yellow ANSI background"):
+    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e1")), None, Set.empty)
+    assert(out.contains("\u001b[43m"), "expected yellow background for cursor")
+
+  test("renderBoard wraps selected square in green ANSI background"):
+    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e2")), Some(sq("e1")), Set.empty)
+    assert(out.contains("\u001b[42m"), "expected green background for selected piece")
+
+  test("renderBoard shows + with blue background for target squares"):
+    val out = TextUI.renderBoard(Board.standard, Color.White, None, None, Set(sq("e4")))
+    assert(out.contains("+"),          "expected + symbol for target square")
+    assert(out.contains("\u001b[44m"), "expected blue background for target square")
+
+  test("renderBoard resets ANSI after each highlighted square"):
+    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e1")), None, Set.empty)
+    assert(out.contains("\u001b[0m"), "expected ANSI reset after highlighted square")
+
+  test("renderBoard still contains file labels"):
+    val out = TextUI.renderBoard(Board.standard, Color.White, None, None, Set.empty)
+    assert(out.contains("a b c d e f g h"))
