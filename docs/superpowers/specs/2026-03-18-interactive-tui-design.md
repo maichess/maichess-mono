@@ -14,7 +14,7 @@ The `uiText` module gains a JLine3 dependency for raw terminal input and ANSI re
 1. **Rendering** — `renderBoard` is extended to accept a cursor position, an optional selected square, and a set of legal target squares. These are highlighted using ANSI background colors.
 2. **Cursor state** — a sealed trait `CursorState` with two cases:
    - `Navigating(cursor: Square)` — free navigation over all 64 squares
-   - `PieceSelected(from: Square, cursor: Square, targets: IndexedSeq[Move])` — cursor locked to legal target moves. `targets` holds full `Move` objects (not just squares) so `ctrl.applyMove` can be called directly without a lookup step.
+   - `PieceSelected(from: Square, index: Int, targets: IndexedSeq[Move])` — cursor locked to legal target moves. `index` is the currently focused position in `targets`; the cursor square is derived as `targets(index).to`. `targets` holds full `Move` objects (not just squares) so `ctrl.applyMove` can be called directly without a lookup step.
 3. **Input loop** — `gameLoop` uses JLine3's `org.jline.terminal.Terminal` to read raw key events (arrow keys, Enter, Escape) and drives the state machine, re-rendering on each event.
 
 Pure functions remain pure. Only `gameLoop` is impure.
