@@ -27,5 +27,6 @@ WartRemover static analysis runs automatically during `sbt compile` (all `Warts.
 - Functions should do one thing. If you need "and" to describe it, split it.
 - Max ~15–20 lines per function. Decompose if longer.
 - Names must express intent without comments.
+- Do not write comments unless absolutely necessary (e.g., explaining non-obvious algorithms or critical warnings).
 - Prefer early returns over nested conditionals.
 - Before finishing, scan for duplicated logic and extract it.
