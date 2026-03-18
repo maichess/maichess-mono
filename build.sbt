@@ -33,6 +33,12 @@ lazy val uiText = (project in file("modules/ui-text"))
   .settings(moduleSettings("org.maichess.mono.ui"): _*)
   .settings(coverageEnabled := false)
   .settings(name := "maichess-ui-text")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.jline" % "jline-terminal" % "3.29.0",
+      "org.jline" % "jline-reader"   % "3.29.0"
+    )
+  )
 
 lazy val tests = (project in file("modules/tests"))
   .dependsOn(model, rules, engine, uiText)
