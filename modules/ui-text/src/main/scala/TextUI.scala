@@ -210,6 +210,6 @@ object TextUI:
 
 @main def runGame(): Unit =
   val ctrl     = GameController(StandardRules)
-  val terminal = TerminalBuilder.builder().system(true).build()
+  val terminal = TerminalBuilder.terminal()
   val _        = terminal.writer().println("Welcome to MaiChess!")
   TextUI.gameLoop(ctrl.newGame(), ctrl, terminal)
