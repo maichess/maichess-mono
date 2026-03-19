@@ -15,7 +15,7 @@ object PromotionDialog:
     def makeButton(label: String, pt: PieceType): Button =
       new Button(label, new Runnable:
         def run(): Unit =
-          val _ = result.set(pt)
+          result.set(pt)
           window.close()
       )
 
