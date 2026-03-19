@@ -118,4 +118,4 @@ class TextUISuite extends FunSuite:
 
   test("renderBoard still contains file labels"):
     val out = TextUI.renderBoard(Board.standard, Color.White, None, None, Set.empty)
-    assert(out.contains("a b c d e f g h"))
+    assert(out.contains("a   b   c   d   e   f   g   h"))

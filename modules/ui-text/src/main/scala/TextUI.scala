@@ -57,16 +57,17 @@ object TextUI:
     targets: Set[Square]
   ): String =
     val rankRange = if perspective == Color.White then (7 to 0 by -1) else (0 to 7)
+    val separator = "  +---+---+---+---+---+---+---+---+"
     val rows = rankRange.map { ri =>
       val cells: IndexedSeq[String] = (0 to 7).map { fi =>
         val sq = for f <- File.fromInt(fi); r <- Rank.fromInt(ri) yield Square(f, r)
-        sq.fold(".")(renderCell(board, _, cursor, selected, targets))
+        sq.fold(" . ")(renderCell(board, _, cursor, selected, targets))
       }
-      val cellsStr: String = cells.mkString(" ")
       val rankLabel: String = (ri + 1).toString
-      rankLabel + " " + cellsStr
+      rankLabel + " |" + cells.mkString("|") + "|"
     }
-    rows.mkString("\n") + "\n  a b c d e f g h"
+    val lines = separator +: rows.flatMap(row => Seq(row, separator))
+    lines.mkString("\n") + "\n    a   b   c   d   e   f   g   h"
 
   private def renderCell(
     board: Board,
@@ -78,12 +79,13 @@ object TextUI:
     val symbol =
       if targets.contains(sq) then "+"
       else board.pieceAt(sq).fold(".")(pieceSymbol)
+    val padded: String = " " + symbol + " "
     val ansiPrefix =
       if cursor.contains(sq)        then "\u001b[43m"
       else if selected.contains(sq) then "\u001b[42m"
       else if targets.contains(sq)  then "\u001b[44m"
       else ""
-    if ansiPrefix.isEmpty then symbol else ansiPrefix + symbol + "\u001b[0m"
+    if ansiPrefix.isEmpty then padded else ansiPrefix + padded + "\u001b[0m"
 
   private def buildKeyMap(terminal: Terminal): KeyMap[String] =
     val km = new KeyMap[String]()
