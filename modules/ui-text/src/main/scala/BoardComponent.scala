@@ -130,7 +130,7 @@ class BoardComponent(
         case KeyType.ArrowDown  => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Down))
         case KeyType.ArrowLeft  => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Left))
         case KeyType.ArrowRight => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Right))
-        case KeyType.Enter      => selectPiece(cursor)
+        case KeyType.Enter      => selectPiece(cursor).getOrElse(cursorState)
         case _                  => cursorState
       case CursorState.PieceSelected(from, index, targets) => key.getKeyType match
         case KeyType.ArrowUp | KeyType.ArrowLeft =>
@@ -158,20 +158,19 @@ class BoardComponent(
       com.googlecode.lanterna.gui2.Interactable.Result.HANDLED
     else com.googlecode.lanterna.gui2.Interactable.Result.UNHANDLED
 
-  private def selectPiece(cursor: Square): CursorState =
-    val raw     = StandardRules.legalMoves(gameState.current, cursor)
+  private def selectPiece(sq: Square): Option[CursorState] =
+    val raw     = StandardRules.legalMoves(gameState.current, sq)
     val deduped = raw.distinctBy(_.to).sortBy(m => m.to.rank.toInt * 8 + m.to.file.toInt)
-    if deduped.isEmpty then CursorState.Navigating(cursor)
-    else CursorState.PieceSelected(cursor, 0, deduped.toIndexedSeq)
+    Option.when(deduped.nonEmpty)(CursorState.PieceSelected(sq, 0, deduped.toIndexedSeq))
 
   private def handleSquareClick(sq: Square): CursorState = cursorState match
-    case CursorState.Navigating(_) =>
-      selectPiece(sq)
-    case CursorState.PieceSelected(from, _, targets) =>
+    case cs @ CursorState.Navigating(_) =>
+      selectPiece(sq).getOrElse(cs)
+    case cs @ CursorState.PieceSelected(from, _, targets) =>
       targets.find(_.to == sq) match
         case Some(move) =>
           onMove(move)
           CursorState.Navigating(sq)
         case None =>
           if sq == from then CursorState.Navigating(from)
-          else selectPiece(sq)
+          else selectPiece(sq).getOrElse(cs)
