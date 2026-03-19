@@ -88,7 +88,7 @@ object LanternaUI:
 
 @main def runGame(): Unit =
   val ctrl     = new GameController(StandardRules)
-  val terminal = new DefaultTerminalFactory().createTerminal()
+  val terminal = new DefaultTerminalFactory().setForceTextTerminal(true).createTerminal()
   val screen   = new TerminalScreen(terminal)
   screen.startScreen()
   try

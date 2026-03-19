@@ -39,6 +39,15 @@ lazy val uiText = (project in file("modules/ui-text"))
       "com.googlecode.lanterna" % "lanterna" % "3.1.2"
     )
   )
+  .settings(
+    assembly / mainClass       := Some("org.maichess.mono.ui.runGame"),
+    assembly / assemblyJarName := "maichess.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("module-info.class")             => MergeStrategy.discard
+      case PathList("META-INF", "versions", _ @ _*) => MergeStrategy.first
+      case x => (assembly / assemblyMergeStrategy).value(x)
+    }
+  )
 
 lazy val tests = (project in file("modules/tests"))
   .dependsOn(model, rules, engine, uiText)
