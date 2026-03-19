@@ -24,29 +24,28 @@ object BoardComponent:
       else if isLight                  then new TextColor.RGB(240, 217, 181)
       else                                  new TextColor.RGB(181, 136, 99)
     val defaultFg: TextColor = TextColor.ANSI.DEFAULT
-    val (pieceChar, fg) = board.pieceAt(sq).fold((' ', defaultFg))(pieceCharAndColor)
-    new TextCharacter(pieceChar, fg, bg)
+    val (ch, fg) = board.pieceAt(sq).fold((' ', defaultFg: TextColor))(p => (pieceChar(p), pieceFg(p)))
+    new TextCharacter(ch, fg, bg)
 
-  private def pieceCharAndColor(piece: Piece): (Char, TextColor) =
-    val ch = piece.color match
-      case Color.White => piece.pieceType match
-        case PieceType.King   => '\u2654'
-        case PieceType.Queen  => '\u2655'
-        case PieceType.Rook   => '\u2656'
-        case PieceType.Bishop => '\u2657'
-        case PieceType.Knight => '\u2658'
-        case PieceType.Pawn   => '\u2659'
-      case Color.Black => piece.pieceType match
-        case PieceType.King   => '\u265A'
-        case PieceType.Queen  => '\u265B'
-        case PieceType.Rook   => '\u265C'
-        case PieceType.Bishop => '\u265D'
-        case PieceType.Knight => '\u265E'
-        case PieceType.Pawn   => '\u265F'
-    val fg: TextColor =
-      if piece.color == Color.White then new TextColor.RGB(255, 255, 255)
-      else                               new TextColor.RGB(0, 0, 0)
-    (ch, fg)
+  private[ui] def pieceChar(piece: Piece): Char = piece.color match
+    case Color.White => piece.pieceType match
+      case PieceType.King   => '\u2654'
+      case PieceType.Queen  => '\u2655'
+      case PieceType.Rook   => '\u2656'
+      case PieceType.Bishop => '\u2657'
+      case PieceType.Knight => '\u2658'
+      case PieceType.Pawn   => '\u2659'
+    case Color.Black => piece.pieceType match
+      case PieceType.King   => '\u265A'
+      case PieceType.Queen  => '\u265B'
+      case PieceType.Rook   => '\u265C'
+      case PieceType.Bishop => '\u265D'
+      case PieceType.Knight => '\u265E'
+      case PieceType.Pawn   => '\u265F'
+
+  private def pieceFg(piece: Piece): TextColor =
+    if piece.color == Color.White then new TextColor.RGB(255, 255, 255)
+    else                               new TextColor.RGB(0, 0, 0)
 
   private object Renderer extends InteractableRenderer[BoardComponent]:
     override def getPreferredSize(component: BoardComponent): TerminalSize =

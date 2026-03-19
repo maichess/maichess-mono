@@ -27,21 +27,8 @@ object SidePanel:
     case PieceType.King   => "K"
     case PieceType.Pawn   => "P"
 
-  def pieceSymbol(piece: Piece): String = piece.color match
-    case Color.White => piece.pieceType match
-      case PieceType.King   => "\u2654"
-      case PieceType.Queen  => "\u2655"
-      case PieceType.Rook   => "\u2656"
-      case PieceType.Bishop => "\u2657"
-      case PieceType.Knight => "\u2658"
-      case PieceType.Pawn   => "\u2659"
-    case Color.Black => piece.pieceType match
-      case PieceType.King   => "\u265A"
-      case PieceType.Queen  => "\u265B"
-      case PieceType.Rook   => "\u265C"
-      case PieceType.Bishop => "\u265D"
-      case PieceType.Knight => "\u265E"
-      case PieceType.Pawn   => "\u265F"
+  def pieceSymbol(piece: Piece): String =
+    BoardComponent.pieceChar(piece).toString
 
 class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
 
@@ -74,8 +61,9 @@ class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
   private def refreshHistory(history: List[String]): Unit =
     val _ = historyPanel.removeAllComponents()
     history.zipWithIndex.grouped(2).foreach { pair =>
-      val white = pair.headOption.fold("")(_._1)
+      val head  = pair.headOption
+      val white = head.fold("")(_._1)
       val black = pair.lift(1).fold("")(_._1)
-      val num   = (pair.headOption.fold(0)(_._2 / 2) + 1).toString + ".  "
+      val num   = (head.fold(0)(_._2 / 2) + 1).toString + ".  "
       val _ = historyPanel.addComponent(new Label(num + white + "    " + black))
     }

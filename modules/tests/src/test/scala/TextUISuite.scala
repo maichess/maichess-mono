@@ -205,3 +205,11 @@ class TextUISuite extends FunSuite:
       SidePanel.moveNotation(EnPassantMove(sq("e5"), sq("d6"), sq("d5"))),
       "e5-d6"
     )
+
+  // ── pieceSymbol ───────────────────────────────────────────────────────────────
+
+  test("pieceSymbol: white king returns ♔"):
+    assertEquals(SidePanel.pieceSymbol(Piece(Color.White, PieceType.King)), "\u2654")
+
+  test("pieceSymbol: black pawn returns ♟"):
+    assertEquals(SidePanel.pieceSymbol(Piece(Color.Black, PieceType.Pawn)), "\u265F")
