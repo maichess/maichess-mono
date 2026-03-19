@@ -35,9 +35,9 @@ object LanternaUI:
             gameState.current.turn
           )
           if gameState.current.turn == Color.White then
-            capturedBlack = capturedBlack ++ newCaptures
-          else
             capturedWhite = capturedWhite ++ newCaptures
+          else
+            capturedBlack = capturedBlack ++ newCaptures
           moveHistory = moveHistory :+ SidePanel.moveNotation(finalMove)
           gameState = newState
           boardComponent.updateState(newState)
