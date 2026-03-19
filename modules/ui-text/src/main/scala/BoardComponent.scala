@@ -127,7 +127,7 @@ class BoardComponent(
         case KeyType.ArrowDown  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Down)))
         case KeyType.ArrowLeft  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Left)))
         case KeyType.ArrowRight => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Right)))
-        case KeyType.Enter      => Some(selectPiece(cursor).getOrElse(cursorState))
+        case KeyType.Enter      => selectPiece(cursor)
         case _                  => None
       case CursorState.PieceSelected(from, index, targets) => key.getKeyType match
         case KeyType.ArrowUp | KeyType.ArrowLeft =>
