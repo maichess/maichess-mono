@@ -2,7 +2,8 @@ package org.maichess.mono.tests
 
 import munit.FunSuite
 import org.maichess.mono.model.*
-import org.maichess.mono.ui.{CursorState, Direction, TextUI, UIState}
+import com.googlecode.lanterna.TextColor
+import org.maichess.mono.ui.{CursorState, Direction, UIState, BoardComponent, SquareHighlights}
 
 class TextUISuite extends FunSuite:
 
@@ -97,25 +98,41 @@ class TextUISuite extends FunSuite:
     val targets = IndexedSeq(mv("e2","e3"), mv("e2","e4"))
     assertEquals(UIState.moveCursorTargets(targets, 1, Direction.Left), 0)
 
-  // ── renderBoard ─────────────────────────────────────────────────────────────
+  // ── renderSquare ─────────────────────────────────────────────────────────────
 
-  test("renderBoard wraps cursor square in yellow ANSI background"):
-    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e1")), None, Set.empty)
-    assert(out.contains("\u001b[43m"), "expected yellow background for cursor")
+  private def noHl: SquareHighlights = SquareHighlights(None, None, Set.empty)
 
-  test("renderBoard wraps selected square in green ANSI background"):
-    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e2")), Some(sq("e1")), Set.empty)
-    assert(out.contains("\u001b[42m"), "expected green background for selected piece")
+  test("renderSquare: a1 is dark (file=0 + rank=0 = 0, even)"):
+    val tc = BoardComponent.renderSquare(Board.empty, sq("a1"), noHl)
+    assertEquals(tc.getBackgroundColor, new TextColor.RGB(181, 136, 99))
 
-  test("renderBoard shows + with blue background for target squares"):
-    val out = TextUI.renderBoard(Board.standard, Color.White, None, None, Set(sq("e4")))
-    assert(out.contains("+"),          "expected + symbol for target square")
-    assert(out.contains("\u001b[44m"), "expected blue background for target square")
+  test("renderSquare: b1 is light (file=1 + rank=0 = 1, odd)"):
+    val tc = BoardComponent.renderSquare(Board.empty, sq("b1"), noHl)
+    assertEquals(tc.getBackgroundColor, new TextColor.RGB(240, 217, 181))
 
-  test("renderBoard resets ANSI after each highlighted square"):
-    val out = TextUI.renderBoard(Board.standard, Color.White, Some(sq("e1")), None, Set.empty)
-    assert(out.contains("\u001b[0m"), "expected ANSI reset after highlighted square")
+  test("renderSquare: cursor square has yellow background"):
+    val hl = SquareHighlights(cursor = Some(sq("e4")), None, Set.empty)
+    val tc = BoardComponent.renderSquare(Board.empty, sq("e4"), hl)
+    assertEquals(tc.getBackgroundColor, new TextColor.RGB(247, 247, 105))
 
-  test("renderBoard still contains file labels"):
-    val out = TextUI.renderBoard(Board.standard, Color.White, None, None, Set.empty)
-    assert(out.contains("a   b   c   d   e   f   g   h"))
+  test("renderSquare: selected square has green background"):
+    val hl = SquareHighlights(None, selected = Some(sq("e2")), Set.empty)
+    val tc = BoardComponent.renderSquare(Board.empty, sq("e2"), hl)
+    assertEquals(tc.getBackgroundColor, new TextColor.RGB(130, 151, 105))
+
+  test("renderSquare: target square has blue background"):
+    val hl = SquareHighlights(None, None, targets = Set(sq("e4")))
+    val tc = BoardComponent.renderSquare(Board.empty, sq("e4"), hl)
+    assertEquals(tc.getBackgroundColor, new TextColor.RGB(100, 130, 180))
+
+  test("renderSquare: white king on e1 shows \u2654"):
+    val tc = BoardComponent.renderSquare(Board.standard, sq("e1"), noHl)
+    assertEquals(tc.getCharacter, '\u2654')
+
+  test("renderSquare: black queen on d8 shows \u265B"):
+    val tc = BoardComponent.renderSquare(Board.standard, sq("d8"), noHl)
+    assertEquals(tc.getCharacter, '\u265B')
+
+  test("renderSquare: empty square shows space"):
+    val tc = BoardComponent.renderSquare(Board.empty, sq("e4"), noHl)
+    assertEquals(tc.getCharacter, ' ')
