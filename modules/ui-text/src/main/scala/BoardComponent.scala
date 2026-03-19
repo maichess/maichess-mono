@@ -1,7 +1,7 @@
 package org.maichess.mono.ui
 
 import com.googlecode.lanterna.{TextCharacter, TextColor, TerminalPosition, TerminalSize}
-import com.googlecode.lanterna.gui2.{AbstractInteractableComponent, InteractableRenderer, TextGUIGraphics}
+import com.googlecode.lanterna.gui2.{AbstractInteractableComponent, Interactable, InteractableRenderer, TextGUIGraphics}
 import com.googlecode.lanterna.input.{KeyStroke, KeyType, MouseAction, MouseActionType}
 import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
@@ -15,7 +15,6 @@ case class SquareHighlights(
 
 object BoardComponent:
 
-  // Light squares: (file.toInt + rank.toInt) is odd. a1 is dark (0+0=0, even).
   def renderSquare(board: Board, sq: Square, hl: SquareHighlights): TextCharacter =
     val isLight = (sq.file.toInt + sq.rank.toInt) % 2 != 0
     val bg: TextColor.RGB =
@@ -80,11 +79,13 @@ class BoardComponent(
 ) extends AbstractInteractableComponent[BoardComponent]:
 
   private var gameState:      GameState   = initialState
-  private var cursorState:    CursorState =
+  private var cursorState:    CursorState = initialCursorState
+  private var boardEnabled: Boolean = true
+
+  private def initialCursorState: CursorState =
     (for f <- File.fromInt(4); r <- Rank.fromInt(0) yield Square(f, r))
       .map(sq => CursorState.Navigating(sq): CursorState)
       .getOrElse(CursorState.Navigating(Square.all(0)))
-  private var boardEnabled: Boolean = true
 
   def snapshot: GameState = gameState
 
@@ -102,10 +103,7 @@ class BoardComponent(
 
   def reset(newState: GameState): Unit =
     gameState = newState
-    cursorState =
-      (for f <- File.fromInt(4); r <- Rank.fromInt(0) yield Square(f, r))
-        .map(sq => CursorState.Navigating(sq): CursorState)
-        .getOrElse(CursorState.Navigating(Square.all(0)))
+    cursorState = initialCursorState
     invalidate()
 
   def setBoardEnabled(flag: Boolean): Unit =
@@ -115,38 +113,40 @@ class BoardComponent(
     BoardComponent.Renderer
 
   // handleInput is final in AbstractInteractableComponent; override handleKeyStroke instead.
-  // MouseAction extends KeyStroke, so we detect it via pattern match here.
-  override protected def handleKeyStroke(key: KeyStroke): com.googlecode.lanterna.gui2.Interactable.Result =
+  override protected def handleKeyStroke(key: KeyStroke): Interactable.Result =
     if boardEnabled then
       key match
         case ma: MouseAction => handleMouse(ma)
         case _               => handleKey(key)
-    else com.googlecode.lanterna.gui2.Interactable.Result.UNHANDLED
+    else Interactable.Result.UNHANDLED
 
-  private def handleKey(key: KeyStroke): com.googlecode.lanterna.gui2.Interactable.Result =
-    val newCs = cursorState match
+  private def handleKey(key: KeyStroke): Interactable.Result =
+    val optNewCs: Option[CursorState] = cursorState match
       case CursorState.Navigating(cursor) => key.getKeyType match
-        case KeyType.ArrowUp    => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Up))
-        case KeyType.ArrowDown  => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Down))
-        case KeyType.ArrowLeft  => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Left))
-        case KeyType.ArrowRight => CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Right))
-        case KeyType.Enter      => selectPiece(cursor).getOrElse(cursorState)
-        case _                  => cursorState
+        case KeyType.ArrowUp    => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Up)))
+        case KeyType.ArrowDown  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Down)))
+        case KeyType.ArrowLeft  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Left)))
+        case KeyType.ArrowRight => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Right)))
+        case KeyType.Enter      => Some(selectPiece(cursor).getOrElse(cursorState))
+        case _                  => None
       case CursorState.PieceSelected(from, index, targets) => key.getKeyType match
         case KeyType.ArrowUp | KeyType.ArrowLeft =>
-          CursorState.PieceSelected(from, UIState.moveCursorTargets(targets, index, Direction.Up), targets)
+          Some(CursorState.PieceSelected(from, UIState.moveCursorTargets(targets, index, Direction.Up), targets))
         case KeyType.ArrowDown | KeyType.ArrowRight =>
-          CursorState.PieceSelected(from, UIState.moveCursorTargets(targets, index, Direction.Down), targets)
+          Some(CursorState.PieceSelected(from, UIState.moveCursorTargets(targets, index, Direction.Down), targets))
         case KeyType.Enter =>
           onMove(targets(index))
-          CursorState.Navigating(targets(index).to)
-        case KeyType.Escape => CursorState.Navigating(from)
-        case _              => cursorState
-    cursorState = newCs
-    invalidate()
-    com.googlecode.lanterna.gui2.Interactable.Result.HANDLED
+          Some(CursorState.Navigating(targets(index).to))
+        case KeyType.Escape => Some(CursorState.Navigating(from))
+        case _              => None
+    optNewCs match
+      case Some(newCs) =>
+        cursorState = newCs
+        invalidate()
+        Interactable.Result.HANDLED
+      case None => Interactable.Result.UNHANDLED
 
-  private def handleMouse(ma: MouseAction): com.googlecode.lanterna.gui2.Interactable.Result =
+  private def handleMouse(ma: MouseAction): Interactable.Result =
     if ma.getActionType == MouseActionType.CLICK_DOWN then
       val pos = ma.getPosition
       val fi  = pos.getColumn / 3
@@ -155,8 +155,8 @@ class BoardComponent(
         yield handleSquareClick(Square(f, r))
       optCs.foreach { cs => cursorState = cs }
       invalidate()
-      com.googlecode.lanterna.gui2.Interactable.Result.HANDLED
-    else com.googlecode.lanterna.gui2.Interactable.Result.UNHANDLED
+      Interactable.Result.HANDLED
+    else Interactable.Result.UNHANDLED
 
   private def selectPiece(sq: Square): Option[CursorState] =
     val raw     = StandardRules.legalMoves(gameState.current, sq)
