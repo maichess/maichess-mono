@@ -4,6 +4,8 @@ import munit.FunSuite
 import org.maichess.mono.model.*
 import com.googlecode.lanterna.TextColor
 import org.maichess.mono.ui.{CursorState, Direction, UIState, BoardComponent, SquareHighlights}
+import org.maichess.mono.ui.SidePanel
+import org.maichess.mono.model.{NormalMove, CastlingMove, EnPassantMove}
 
 class TextUISuite extends FunSuite:
 
@@ -136,3 +138,70 @@ class TextUISuite extends FunSuite:
   test("renderSquare: empty square shows space"):
     val tc = BoardComponent.renderSquare(Board.empty, sq("e4"), noHl)
     assertEquals(tc.getCharacter, ' ')
+
+  // ── capturedPieces ────────────────────────────────────────────────────────────
+
+  test("capturedPieces: normal capture returns the captured opponent piece"):
+    val blackPawn = Piece(Color.Black, PieceType.Pawn)
+    val before    = Board(Map(sq("e5") -> blackPawn))
+    val after     = Board(Map.empty)
+    assertEquals(SidePanel.capturedPieces(before, after, Color.White), List(blackPawn))
+
+  test("capturedPieces: moving player own piece not included"):
+    val whitePawn = Piece(Color.White, PieceType.Pawn)
+    val before    = Board(Map(sq("e2") -> whitePawn))
+    val after     = Board(Map(sq("e4") -> whitePawn))
+    assertEquals(SidePanel.capturedPieces(before, after, Color.White), List.empty)
+
+  test("capturedPieces: promotion-capture returns captured piece, not moving pawn"):
+    val whitePawn  = Piece(Color.White, PieceType.Pawn)
+    val blackRook  = Piece(Color.Black, PieceType.Rook)
+    val whiteQueen = Piece(Color.White, PieceType.Queen)
+    val before = Board(Map(sq("e7") -> whitePawn, sq("d8") -> blackRook))
+    val after  = Board(Map(sq("d8") -> whiteQueen))
+    assertEquals(SidePanel.capturedPieces(before, after, Color.White), List(blackRook))
+
+  test("capturedPieces: en passant capture returns the captured pawn"):
+    val whitePawn = Piece(Color.White, PieceType.Pawn)
+    val blackPawn = Piece(Color.Black, PieceType.Pawn)
+    val before    = Board(Map(sq("e5") -> whitePawn, sq("d5") -> blackPawn))
+    val after     = Board(Map(sq("d6") -> whitePawn))
+    assertEquals(SidePanel.capturedPieces(before, after, Color.White), List(blackPawn))
+
+  test("capturedPieces: promotion without capture returns empty"):
+    val whitePawn  = Piece(Color.White, PieceType.Pawn)
+    val whiteQueen = Piece(Color.White, PieceType.Queen)
+    val before = Board(Map(sq("e7") -> whitePawn))
+    val after  = Board(Map(sq("e8") -> whiteQueen))
+    assertEquals(SidePanel.capturedPieces(before, after, Color.White), List.empty)
+
+  // ── moveNotation ──────────────────────────────────────────────────────────────
+
+  test("moveNotation: normal move"):
+    assertEquals(SidePanel.moveNotation(NormalMove(sq("e2"), sq("e4"), None)), "e2-e4")
+
+  test("moveNotation: promotion appends piece letter"):
+    assertEquals(
+      SidePanel.moveNotation(NormalMove(sq("e7"), sq("e8"), Some(PieceType.Queen))),
+      "e7-e8=Q"
+    )
+
+  test("moveNotation: kingside castling"):
+    // rookFrom(h1) file=7 > from(e1) file=4
+    assertEquals(
+      SidePanel.moveNotation(CastlingMove(sq("e1"), sq("g1"), sq("h1"), sq("f1"))),
+      "O-O"
+    )
+
+  test("moveNotation: queenside castling"):
+    // rookFrom(a1) file=0 < from(e1) file=4
+    assertEquals(
+      SidePanel.moveNotation(CastlingMove(sq("e1"), sq("c1"), sq("a1"), sq("d1"))),
+      "O-O-O"
+    )
+
+  test("moveNotation: en passant uses same file-rank format"):
+    assertEquals(
+      SidePanel.moveNotation(EnPassantMove(sq("e5"), sq("d6"), sq("d5"))),
+      "e5-d6"
+    )
