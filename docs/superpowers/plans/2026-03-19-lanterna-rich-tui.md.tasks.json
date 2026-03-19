@@ -4,10 +4,10 @@
     {"id": 2, "subject": "Task 2: UIState — pure cursor logic + TextUISuite migration", "status": "completed"},
     {"id": 3, "subject": "Task 3: BoardComponent — rendering + keyboard + mouse", "status": "completed"},
     {"id": 4, "subject": "Task 4: SidePanel — status, captures, history + pure helpers", "status": "completed"},
-    {"id": 5, "subject": "Task 5: PromotionDialog — pawn promotion modal", "status": "pending"},
-    {"id": 6, "subject": "Task 6: MenuBar — New Game / Resign buttons", "status": "pending"},
-    {"id": 7, "subject": "Task 7: LanternaUI — orchestrator and game loop", "status": "pending", "blockedBy": [3, 4, 5, 6]},
-    {"id": 8, "subject": "Task 8: Wire — delete TextUI.scala, final verification", "status": "pending", "blockedBy": [7]}
+    {"id": 5, "subject": "Task 5: PromotionDialog — pawn promotion modal", "status": "completed"},
+    {"id": 6, "subject": "Task 6: MenuBar — New Game / Resign buttons", "status": "completed"},
+    {"id": 7, "subject": "Task 7: LanternaUI — orchestrator and game loop", "status": "completed"},
+    {"id": 8, "subject": "Task 8: Wire — delete TextUI.scala, final verification", "status": "completed"}
   ],
   "lastUpdated": "2026-03-19T22:11:00Z"
 }
