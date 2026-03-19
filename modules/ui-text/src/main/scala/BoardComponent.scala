@@ -115,8 +115,10 @@ class BoardComponent(
   override protected def handleKeyStroke(key: KeyStroke): Interactable.Result =
     if boardEnabled then
       key match
-        case ma: MouseAction => handleMouse(ma)
-        case _               => handleKey(key)
+        case ma: MouseAction             => handleMouse(ma)
+        case _ if key.getKeyType == KeyType.Tab        => Interactable.Result.MOVE_FOCUS_NEXT
+        case _ if key.getKeyType == KeyType.ReverseTab => Interactable.Result.MOVE_FOCUS_PREVIOUS
+        case _                           => handleKey(key)
     else Interactable.Result.UNHANDLED
 
   private def handleKey(key: KeyStroke): Interactable.Result =
