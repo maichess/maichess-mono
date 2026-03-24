@@ -16,6 +16,16 @@ class GameController(ruleSet: RuleSet):
     if legal.contains(move) then Right(advance(state, move))
     else Left(IllegalMove("Illegal move"))
 
+  /** Steps back one move; returns None if there is no history. */
+  def undo(state: GameState): Option[GameState] = state.history match
+    case Nil           => None
+    case prev :: rest  => Some(GameState(rest, prev, state.current :: state.future))
+
+  /** Re-applies the last undone move; returns None if there is no future. */
+  def redo(state: GameState): Option[GameState] = state.future match
+    case Nil           => None
+    case next :: rest  => Some(GameState(state.current :: state.history, next, rest))
+
   /** Returns the game result if the game is over, otherwise None. */
   def gameResult(state: GameState): Option[GameResult] =
     val sit = state.current
@@ -26,7 +36,7 @@ class GameController(ruleSet: RuleSet):
     else if threefoldRepetition(state)         then Some(GameResult.Draw(DrawReason.ThreefoldRepetition))
     else None
 
-  private def advance(state: GameState, move: Move): GameState =
+  private[engine] def advance(state: GameState, move: Move): GameState =
     val sit  = state.current
     val next = Situation(
       board           = sit.board.applyMove(move),
@@ -37,7 +47,7 @@ class GameController(ruleSet: RuleSet):
       fullMoveNumber  = if sit.turn == Color.Black then sit.fullMoveNumber + 1
                         else sit.fullMoveNumber
     )
-    GameState(sit :: state.history, next)
+    GameState(sit :: state.history, next, Nil)
 
   private def enPassantAfter(sit: Situation, move: Move): Option[Square] = move match
     case NormalMove(from, to, None) =>

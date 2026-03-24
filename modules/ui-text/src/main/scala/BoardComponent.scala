@@ -74,7 +74,8 @@ object BoardComponent:
 @SuppressWarnings(Array("org.wartremover.warts.Var"))
 class BoardComponent(
   initialState: GameState,
-  onMove: Move => Unit
+  onMove: Move => Unit,
+  shortcuts: Map[Char, () => Unit]
 ) extends AbstractInteractableComponent[BoardComponent]:
 
   private var gameState:      GameState   = initialState
@@ -113,13 +114,21 @@ class BoardComponent(
 
   // handleInput is final in AbstractInteractableComponent; override handleKeyStroke instead.
   override protected def handleKeyStroke(key: KeyStroke): Interactable.Result =
-    if boardEnabled then
-      key match
-        case ma: MouseAction             => handleMouse(ma)
-        case _ if key.getKeyType == KeyType.Tab        => Interactable.Result.MOVE_FOCUS_NEXT
-        case _ if key.getKeyType == KeyType.ReverseTab => Interactable.Result.MOVE_FOCUS_PREVIOUS
-        case _                           => handleKey(key)
-    else Interactable.Result.UNHANDLED
+    key match
+      case ma: MouseAction             => if boardEnabled then handleMouse(ma) else Interactable.Result.UNHANDLED
+      case _ if key.getKeyType == KeyType.Tab        => Interactable.Result.MOVE_FOCUS_NEXT
+      case _ if key.getKeyType == KeyType.ReverseTab => Interactable.Result.MOVE_FOCUS_PREVIOUS
+      case _ if key.isCtrlDown && key.getKeyType == KeyType.Character =>
+        handleShortcut(key.getCharacter)
+      case _ if boardEnabled           => handleKey(key)
+      case _                           => Interactable.Result.UNHANDLED
+
+  private def handleShortcut(ch: Char): Interactable.Result =
+    shortcuts.get(ch.toLower) match
+      case Some(action) =>
+        action()
+        Interactable.Result.HANDLED
+      case None => Interactable.Result.UNHANDLED
 
   private def handleKey(key: KeyStroke): Interactable.Result =
     val optNewCs: Option[CursorState] = cursorState match
@@ -149,14 +158,17 @@ class BoardComponent(
 
   private def handleMouse(ma: MouseAction): Interactable.Result =
     if ma.getActionType == MouseActionType.CLICK_DOWN then
-      val pos = ma.getPosition
-      val fi  = pos.getColumn / 3
-      val ri  = 7 - pos.getRow
+      val pos  = ma.getPosition
+      val fi   = pos.getColumn / 3
+      val ri   = 7 - pos.getRow
       val optCs = for f <- File.fromInt(fi); r <- Rank.fromInt(ri)
         yield handleSquareClick(Square(f, r))
-      optCs.foreach { cs => cursorState = cs }
-      invalidate()
-      Interactable.Result.HANDLED
+      optCs match
+        case Some(cs) =>
+          cursorState = cs
+          invalidate()
+          Interactable.Result.HANDLED
+        case None => Interactable.Result.UNHANDLED
     else Interactable.Result.UNHANDLED
 
   private def selectPiece(sq: Square): Option[CursorState] =

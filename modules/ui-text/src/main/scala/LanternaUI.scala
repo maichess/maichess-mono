@@ -4,9 +4,11 @@ import com.googlecode.lanterna.TextColor
 import com.googlecode.lanterna.gui2.{BasicWindow, BorderLayout, DefaultWindowManager, EmptySpace, MultiWindowTextGUI, Panel, WindowBasedTextGUI}
 import com.googlecode.lanterna.screen.TerminalScreen
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory
-import org.maichess.mono.engine.{DrawReason, GameController, GameResult, GameState}
+import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration
+import java.awt.Font
+import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, GameState, Pgn}
 import org.maichess.mono.model.*
-import org.maichess.mono.rules.StandardRules
+import org.maichess.mono.rules.{Situation, StandardRules}
 
 @SuppressWarnings(Array("org.wartremover.warts.Var"))
 object LanternaUI:
@@ -19,8 +21,51 @@ object LanternaUI:
 
     val sidePanel = new SidePanel()
 
-    // lazy val avoids forward reference: the lambda captures boardComponent
-    // but is only called after boardComponent is fully initialised.
+    def refreshFromState(newState: GameState): Unit =
+      gameState = newState
+      boardComponent.reset(newState)
+      boardComponent.setBoardEnabled(true)
+      capturedWhite = List.empty
+      capturedBlack = List.empty
+      moveHistory   = List.empty
+      sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
+
+    def doNewGame(): Unit   = refreshFromState(ctrl.newGame())
+    def doUndo(): Unit      = ctrl.undo(gameState).foreach(refreshFromState)
+    def doRedo(): Unit      = ctrl.redo(gameState).foreach(refreshFromState)
+    def doImportFen(): Unit =
+      ChessDialog.showImport(gui, "Import FEN", "Paste a FEN string:").foreach { input =>
+        Fen.decode(input.trim) match
+          case Right(sit) => refreshFromState(GameState(Nil, sit))
+          case Left(err)  => ChessDialog.showExport(gui, "FEN Error", err)
+      }
+    def doExportFen(): Unit =
+      ChessDialog.showExport(gui, "Export FEN", Fen.encode(gameState.current))
+    def doImportPgn(): Unit =
+      ChessDialog.showImport(gui, "Import PGN", "Paste a PGN string:").foreach { input =>
+        Pgn.decode(input.trim, StandardRules) match
+          case Right(newState) => refreshFromState(newState)
+          case Left(err)       => ChessDialog.showExport(gui, "PGN Error", err)
+      }
+    def doExportPgn(): Unit =
+      ChessDialog.showExport(gui, "Export PGN", Pgn.encode(gameState, StandardRules))
+    def doResign(): Unit =
+      val resigning = if gameState.current.turn == Color.White then "White" else "Black"
+      val winner    = if gameState.current.turn == Color.White then "Black" else "White"
+      sidePanel.showResult(resigning + " resigned. " + winner + " wins.")
+      boardComponent.setBoardEnabled(false)
+
+    lazy val shortcutMap: Map[Char, () => Unit] = Map(
+      'n' -> (() => doNewGame()),
+      'r' -> (() => doResign()),
+      'z' -> (() => doUndo()),
+      'y' -> (() => doRedo()),
+      'f' -> (() => doImportFen()),
+      'e' -> (() => doExportFen()),
+      'p' -> (() => doImportPgn()),
+      'o' -> (() => doExportPgn())
+    )
+
     lazy val boardComponent: BoardComponent = new BoardComponent(gameState, move => {
       val finalMove = move match
         case nm: NormalMove if nm.promotion.isDefined =>
@@ -47,25 +92,17 @@ object LanternaUI:
             boardComponent.setBoardEnabled(false)
           }
         case Left(_) => ()
-    })
+    }, shortcutMap)
 
     val menuBar = new MenuBar(
-      onNewGame = () => {
-        val newState = ctrl.newGame()
-        gameState     = newState
-        moveHistory   = List.empty
-        capturedWhite = List.empty
-        capturedBlack = List.empty
-        boardComponent.reset(newState)
-        boardComponent.setBoardEnabled(true)
-        sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
-      },
-      onResign = () => {
-        val resigning = if gameState.current.turn == Color.White then "White" else "Black"
-        val winner    = if gameState.current.turn == Color.White then "Black" else "White"
-        sidePanel.showResult(resigning + " resigned. " + winner + " wins.")
-        boardComponent.setBoardEnabled(false)
-      }
+      onNewGame   = () => doNewGame(),
+      onResign    = () => doResign(),
+      onUndo      = () => doUndo(),
+      onRedo      = () => doRedo(),
+      onImportFen = () => doImportFen(),
+      onExportFen = () => doExportFen(),
+      onImportPgn = () => doImportPgn(),
+      onExportPgn = () => doExportPgn()
     )
 
     val mainPanel = new Panel(new BorderLayout())
@@ -87,8 +124,15 @@ object LanternaUI:
     case GameResult.Draw(DrawReason.Agreement)            => "Draw by agreement."
 
 @main def runGame(): Unit =
-  val ctrl     = new GameController(StandardRules)
-  val terminal = new DefaultTerminalFactory().setForceTextTerminal(true).createTerminal()
+  val ctrl      = new GameController(StandardRules)
+  val factory   = new DefaultTerminalFactory()
+  val isWindows = System.getProperty("os.name").toLowerCase.contains("win")
+  if isWindows then
+    val font = new Font(Font.MONOSPACED, Font.PLAIN, 24)
+    factory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font))
+  else
+    factory.setForceTextTerminal(true)
+  val terminal = factory.createTerminal()
   val screen   = new TerminalScreen(terminal)
   screen.startScreen()
   try
