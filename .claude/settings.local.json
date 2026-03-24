@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(sbt \"tests/test\")",
+      "Bash(sbt \"ui-text/compile\")",
+      "Bash(sbt \"ui-text/package\")",
+      "Bash(SCALA3=\"/c/Users/micro/AppData/Local/Coursier/cache/v1/https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.8.2/scala3-library_3-3.8.2.jar\" SCALA2=\"/c/Users/micro/AppData/Local/Coursier/cache/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/3.8.2/scala-library-3.8.2.jar\" BASE=\"/c/Users/micro/source/MaiChess/maichess-mono/modules\" CP=\"$BASE/model/target/scala-3.8.2/chess-model_3-0.1.0-SNAPSHOT.jar:$BASE/rules/target/scala-3.8.2/chess-rules_3-0.1.0-SNAPSHOT.jar:$BASE/engine/target/scala-3.8.2/chess-engine_3-0.1.0-SNAPSHOT.jar:$BASE/ui-text/target/scala-3.8.2/chess-ui-text_3-0.1.0-SNAPSHOT.jar:$SCALA3:$SCALA2\" printf \"e2e4\\\\ne7e5\\\\nd1h5\\\\nb8c6\\\\nf1c4\\\\ng8f6\\\\nh5f7\\\\n\")",
+      "Bash(java -cp \"$CP\" chess.ui.TextUI)"
+    ]
+  }
+}

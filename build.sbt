@@ -1,11 +1,58 @@
-ThisBuild / version := "0.1.0-SNAPSHOT"
+val scala3Version = "3.8.2"
+val munitVersion  = "1.0.0"
 
-ThisBuild / scalaVersion := "3.8.2"
+lazy val commonSettings = Seq(
+  scalaVersion := scala3Version,
+  organization := "chess",
+  scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked"),
+)
 
-lazy val root = (project in file("."))
+lazy val model = project
+  .in(file("modules/model"))
   .settings(
-    name := "maichess-mono",
-    idePackagePrefix.withRank(KeyRanks.Invisible) := Some("org.maichess.mono")
+    commonSettings,
+    name := "chess-model",
   )
 
-wartremoverErrors ++= Warts.unsafe
+lazy val rules = project
+  .in(file("modules/rules"))
+  .settings(
+    commonSettings,
+    name := "chess-rules",
+  )
+  .dependsOn(model)
+
+lazy val engine = project
+  .in(file("modules/engine"))
+  .settings(
+    commonSettings,
+    name := "chess-engine",
+  )
+  .dependsOn(model, rules)
+
+lazy val `ui-text` = project
+  .in(file("modules/ui-text"))
+  .settings(
+    commonSettings,
+    name := "chess-ui-text",
+  )
+  .dependsOn(engine)
+
+lazy val tests = project
+  .in(file("modules/tests"))
+  .settings(
+    commonSettings,
+    name               := "chess-tests",
+    libraryDependencies += "org.scalameta" %% "munit" % munitVersion % Test,
+    testFrameworks     += new TestFramework("munit.Framework"),
+  )
+  .dependsOn(model, rules, engine, `ui-text`)
+
+lazy val root = project
+  .in(file("."))
+  .aggregate(model, rules, engine, `ui-text`, tests)
+  .settings(
+    name := "chess",
+    // suppress unused warnings for the aggregator root
+    publish / skip := true,
+  )
