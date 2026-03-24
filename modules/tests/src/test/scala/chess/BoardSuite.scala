@@ -80,6 +80,12 @@ class BoardSuite extends FunSuite:
     assertEquals(newB.pieceAt(sq("d6")), Some(Piece(Color.White, PieceType.Pawn)))
     assertEquals(newB.pieceAt(sq("e5")), None)
 
+  test("applyMove promotes pawn when promotion piece is specified"):
+    val board = Board(Map(sq("e7") -> Piece(Color.White, PieceType.Pawn)))
+    val newB  = board.applyMove(NormalMove(sq("e7"), sq("e8"), Some(PieceType.Queen)))
+    assertEquals(newB.pieceAt(sq("e8")), Some(Piece(Color.White, PieceType.Queen)))
+    assertEquals(newB.pieceAt(sq("e7")), None)
+
   test("CastlingMove moves both king and rook"):
     val board = Board(Map(
       sq("e1") -> Piece(Color.White, PieceType.King),

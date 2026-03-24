@@ -1,11 +1,15 @@
 val scala3Version = "3.8.2"
 val munitVersion  = "1.0.0"
 
+// ── Shared settings ──────────────────────────────────────────────────────────
+
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
   organization := "chess",
   scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked"),
 )
+
+// ── Modules ──────────────────────────────────────────────────────────────────
 
 lazy val model = project
   .in(file("modules/model"))
@@ -34,7 +38,19 @@ lazy val `ui-text` = project
   .in(file("modules/ui-text"))
   .settings(
     commonSettings,
-    name := "chess-ui-text",
+    name            := "chess-ui-text",
+    // forward stdin so the game is playable via `sbt ui-text/run`
+    run / fork         := true,
+    run / connectInput := true,
+    // fat-jar entry point for play scripts
+    assembly / mainClass             := Some("chess.ui.run"),
+    assembly / assemblyJarName       := "chess.jar",
+    assembly / assemblyOutputPath    := file("chess.jar"),
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", _*) => MergeStrategy.discard
+      case x                        => (assembly / assemblyMergeStrategy).value(x)
+    },
+    coverageExcludedFiles := ".*Main.*",
   )
   .dependsOn(engine)
 
@@ -48,11 +64,15 @@ lazy val tests = project
   )
   .dependsOn(model, rules, engine, `ui-text`)
 
+// ── Root aggregator ──────────────────────────────────────────────────────────
+
 lazy val root = project
   .in(file("."))
   .aggregate(model, rules, engine, `ui-text`, tests)
   .settings(
-    name := "chess",
-    // suppress unused warnings for the aggregator root
-    publish / skip := true,
+    name                          := "chess",
+    // never try to compile the project root itself
+    Compile / unmanagedSourceDirectories := Nil,
+    Compile / sources                    := Nil,
+    publish / skip                       := true,
   )
