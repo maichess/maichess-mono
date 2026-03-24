@@ -118,7 +118,7 @@ class BoardComponent(
       case ma: MouseAction             => if boardEnabled then handleMouse(ma) else Interactable.Result.UNHANDLED
       case _ if key.getKeyType == KeyType.Tab        => Interactable.Result.MOVE_FOCUS_NEXT
       case _ if key.getKeyType == KeyType.ReverseTab => Interactable.Result.MOVE_FOCUS_PREVIOUS
-      case _ if key.isCtrlDown && key.getKeyType == KeyType.Character =>
+      case _ if key.getKeyType == KeyType.Character =>
         handleShortcut(key.getCharacter)
       case _ if boardEnabled           => handleKey(key)
       case _                           => Interactable.Result.UNHANDLED
