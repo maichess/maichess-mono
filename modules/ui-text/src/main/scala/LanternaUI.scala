@@ -14,25 +14,60 @@ import org.maichess.mono.rules.{Situation, StandardRules}
 object LanternaUI:
 
   def start(ctrl: GameController, gui: WindowBasedTextGUI): Unit =
-    var gameState:     GameState    = ctrl.newGame()
-    var moveHistory:   List[String] = List.empty
-    var capturedWhite: List[Piece]  = List.empty
-    var capturedBlack: List[Piece]  = List.empty
+    var gameState:         GameState    = ctrl.newGame()
+    var moveHistory:       List[String] = List.empty
+    var futureMoveHistory: List[String] = List.empty
+    var capturedWhite:     List[Piece]  = List.empty
+    var capturedBlack:     List[Piece]  = List.empty
 
     val sidePanel = new SidePanel()
 
+    def recomputeCaptures(state: GameState): (List[Piece], List[Piece]) =
+      val sits = state.history.reverse :+ state.current
+      sits.zip(sits.drop(1)).foldLeft((List.empty[Piece], List.empty[Piece])) {
+        case ((cw, cb), (before, after)) =>
+          val caps = SidePanel.capturedPieces(before.board, after.board, before.turn)
+          if before.turn == Color.White then (cw ++ caps, cb) else (cw, cb ++ caps)
+      }
+
     def refreshFromState(newState: GameState): Unit =
-      gameState = newState
+      gameState         = newState
+      moveHistory       = List.empty
+      futureMoveHistory = List.empty
+      capturedWhite     = List.empty
+      capturedBlack     = List.empty
       boardComponent.reset(newState)
       boardComponent.setBoardEnabled(true)
-      capturedWhite = List.empty
-      capturedBlack = List.empty
-      moveHistory   = List.empty
       sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
 
-    def doNewGame(): Unit   = refreshFromState(ctrl.newGame())
-    def doUndo(): Unit      = ctrl.undo(gameState).foreach(refreshFromState)
-    def doRedo(): Unit      = ctrl.redo(gameState).foreach(refreshFromState)
+    def doNewGame(): Unit = refreshFromState(ctrl.newGame())
+
+    def doUndo(): Unit =
+      ctrl.undo(gameState).foreach { newState =>
+        futureMoveHistory = moveHistory.lastOption.toList ++ futureMoveHistory
+        moveHistory       = moveHistory.dropRight(1)
+        gameState         = newState
+        val (cw, cb)      = recomputeCaptures(newState)
+        capturedWhite     = cw
+        capturedBlack     = cb
+        boardComponent.updateState(newState)
+        sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
+      }
+
+    def doRedo(): Unit =
+      ctrl.redo(gameState).foreach { newState =>
+        futureMoveHistory match
+          case head :: rest =>
+            moveHistory       = moveHistory :+ head
+            futureMoveHistory = rest
+          case Nil => ()
+        gameState         = newState
+        val (cw, cb)      = recomputeCaptures(newState)
+        capturedWhite     = cw
+        capturedBlack     = cb
+        boardComponent.updateState(newState)
+        sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
+      }
     def doImportFen(): Unit =
       ChessDialog.showImport(gui, "Import FEN", "Paste a FEN string:").foreach { input =>
         Fen.decode(input.trim) match
@@ -83,8 +118,9 @@ object LanternaUI:
             capturedWhite = capturedWhite ++ newCaptures
           else
             capturedBlack = capturedBlack ++ newCaptures
-          moveHistory = moveHistory :+ SidePanel.moveNotation(finalMove)
-          gameState = newState
+          moveHistory       = moveHistory :+ SidePanel.moveNotation(finalMove)
+          futureMoveHistory = List.empty
+          gameState         = newState
           boardComponent.updateState(newState)
           sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
           ctrl.gameResult(newState).foreach { result =>
