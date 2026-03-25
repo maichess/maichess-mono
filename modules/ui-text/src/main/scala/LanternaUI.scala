@@ -3,7 +3,7 @@ package org.maichess.mono.ui
 import com.googlecode.lanterna.TextColor
 import com.googlecode.lanterna.gui2.{BasicWindow, BorderLayout, DefaultWindowManager, EmptySpace, MultiWindowTextGUI, Panel, WindowBasedTextGUI}
 import com.googlecode.lanterna.screen.TerminalScreen
-import com.googlecode.lanterna.terminal.DefaultTerminalFactory
+import com.googlecode.lanterna.terminal.{DefaultTerminalFactory, ExtendedTerminal, MouseCaptureMode}
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration
 import java.awt.Font
 import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, GameState, Pgn}
@@ -169,6 +169,9 @@ object LanternaUI:
   else
     factory.setForceTextTerminal(true)
   val terminal = factory.createTerminal()
+  terminal match
+    case t: ExtendedTerminal => t.setMouseCaptureMode(MouseCaptureMode.CLICK_RELEASE)
+    case _                   => ()
   val screen   = new TerminalScreen(terminal)
   screen.startScreen()
   try

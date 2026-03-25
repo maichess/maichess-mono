@@ -158,9 +158,10 @@ class BoardComponent(
 
   private def handleMouse(ma: MouseAction): Interactable.Result =
     if ma.getActionType == MouseActionType.CLICK_DOWN then
-      val pos  = ma.getPosition
-      val fi   = pos.getColumn / 3
-      val ri   = 7 - pos.getRow
+      val origin = toGlobal(TerminalPosition.TOP_LEFT_CORNER)
+      val pos    = ma.getPosition
+      val fi     = (pos.getColumn - origin.getColumn) / 3
+      val ri     = 7 - (pos.getRow - origin.getRow)
       val optCs = for f <- File.fromInt(fi); r <- Rank.fromInt(ri)
         yield handleSquareClick(Square(f, r))
       optCs match
