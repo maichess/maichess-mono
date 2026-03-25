@@ -61,8 +61,9 @@ object Pgn:
       .trim
 
   private def tokenize(body: String): List[String] =
-    val noComments = body.replaceAll("\\{[^}]*\\}", "").replaceAll("\\$\\d+", "")
-    noComments.split("\\s+").toList.filter(t =>
+    val noComments = body.replaceAll("\\{[^}]*\\}", "").replaceAll("\\$\\d+", "").replaceAll("[!?]+", "")
+    val spaced     = noComments.replaceAll("(\\d+\\.+)", " $1 ")
+    spaced.split("\\s+").toList.filter(t =>
       t.nonEmpty &&
       !t.matches("\\d+\\.+") &&
       !Set("*", "1-0", "0-1", "1/2-1/2").contains(t)
