@@ -11,6 +11,16 @@ val coverageSettings: Seq[Def.Setting[?]] = Seq(
   coverageFailOnMinimum    := true
 )
 
+// Compute the JavaFX platform classifier at build time
+val jfxClassifier: String = {
+  val os   = sys.props.getOrElse("os.name", "").toLowerCase
+  val arch = sys.props.getOrElse("os.arch", "").toLowerCase
+  if      (os.contains("mac") && arch.contains("aarch64")) "mac-aarch64"
+  else if (os.contains("mac"))                              "mac"
+  else if (os.contains("win"))                              "win"
+  else                                                      "linux"
+}
+
 lazy val model = (project in file("modules/model"))
   .settings(moduleSettings("org.maichess.mono.model"): _*)
   .settings(coverageSettings: _*)
@@ -28,12 +38,27 @@ lazy val engine = (project in file("modules/engine"))
   .settings(coverageSettings: _*)
   .settings(name := "maichess-engine")
 
-lazy val uiText = (project in file("modules/ui-text"))
+lazy val uiFx = (project in file("modules/ui-fx"))
   .dependsOn(engine)
+  .settings(moduleSettings("org.maichess.mono.uifx"): _*)
+  .settings(coverageEnabled   := false)
+  .settings(wartremoverErrors  := Nil, wartremoverWarnings := Nil)
+  .settings(name := "maichess-ui-fx")
+  .settings(run / fork := true)
+  .settings(
+    libraryDependencies ++= Seq("base", "controls", "graphics").map { m =>
+      "org.openjfx" % s"javafx-$m" % "21" classifier jfxClassifier
+    }
+  )
+
+lazy val uiText = (project in file("modules/ui-text"))
+  .dependsOn(engine, uiFx)
   .settings(moduleSettings("org.maichess.mono.ui"): _*)
   .settings(coverageEnabled := false)
   .settings(name := "maichess-ui-text")
   .settings(run / fork := true)
+  .settings(run / connectInput := true)
+  .settings(run / outputStrategy := Some(StdoutOutput))
   .settings(
     libraryDependencies ++= Seq(
       "com.googlecode.lanterna" % "lanterna" % "3.1.2"
@@ -66,7 +91,7 @@ lazy val tests = (project in file("modules/tests"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(model, rules, engine, uiText, tests)
+  .aggregate(model, rules, engine, uiFx, uiText, tests)
   .settings(
     name := "maichess-mono",
     Compile / unmanagedSourceDirectories := Nil,

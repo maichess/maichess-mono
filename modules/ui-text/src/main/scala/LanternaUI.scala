@@ -6,23 +6,17 @@ import com.googlecode.lanterna.screen.TerminalScreen
 import com.googlecode.lanterna.terminal.{DefaultTerminalFactory, ExtendedTerminal, MouseCaptureMode}
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration
 import java.awt.Font
-import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, GameState, Pgn}
+import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, Pgn}
 import org.maichess.mono.model.*
-import org.maichess.mono.rules.{Situation, StandardRules}
+import org.maichess.mono.rules.{StandardRules, Situation}
+import org.maichess.mono.uifx.{Change, FxUI, SharedGameModel}
 
-@SuppressWarnings(Array("org.wartremover.warts.Var"))
 object LanternaUI:
 
-  def start(ctrl: GameController, gui: WindowBasedTextGUI): Unit =
-    var gameState:         GameState    = ctrl.newGame()
-    var moveHistory:       List[String] = List.empty
-    var futureMoveHistory: List[String] = List.empty
-    var capturedWhite:     List[Piece]  = List.empty
-    var capturedBlack:     List[Piece]  = List.empty
-
+  def start(model: SharedGameModel, gui: WindowBasedTextGUI): Unit =
     val sidePanel = new SidePanel()
 
-    def recomputeCaptures(state: GameState): (List[Piece], List[Piece]) =
+    def recomputeCaptures(state: org.maichess.mono.engine.GameState): (List[Piece], List[Piece]) =
       val sits = state.history.reverse :+ state.current
       sits.zip(sits.drop(1)).foldLeft((List.empty[Piece], List.empty[Piece])) {
         case ((cw, cb), (before, after)) =>
@@ -30,111 +24,80 @@ object LanternaUI:
           if before.turn == Color.White then (cw ++ caps, cb) else (cw, cb ++ caps)
       }
 
-    def refreshFromState(newState: GameState): Unit =
-      gameState         = newState
-      moveHistory       = List.empty
-      futureMoveHistory = List.empty
-      capturedWhite     = List.empty
-      capturedBlack     = List.empty
-      boardComponent.reset(newState)
-      boardComponent.setBoardEnabled(true)
-      sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
-
-    def doNewGame(): Unit = refreshFromState(ctrl.newGame())
-
-    def doUndo(): Unit =
-      ctrl.undo(gameState).foreach { newState =>
-        futureMoveHistory = moveHistory.lastOption.toList ++ futureMoveHistory
-        moveHistory       = moveHistory.dropRight(1)
-        gameState         = newState
-        val (cw, cb)      = recomputeCaptures(newState)
-        capturedWhite     = cw
-        capturedBlack     = cb
-        boardComponent.updateState(newState)
-        sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
+    def syncUiFrom(s: SharedGameModel.State): Unit =
+      val (cw, cb) = recomputeCaptures(s.game)
+      s.change match
+        case Change.Reset =>
+          boardComponent.reset(s.game)
+          boardComponent.setBoardEnabled(true)
+        case _ =>
+          boardComponent.updateState(s.game)
+      sidePanel.update(s.game, s.moveHistory, cw, cb)
+      model.gameResult().foreach { result =>
+        sidePanel.showResult(resultMessage(result))
+        boardComponent.setBoardEnabled(false)
       }
 
-    def doRedo(): Unit =
-      ctrl.redo(gameState).foreach { newState =>
-        futureMoveHistory match
-          case head :: rest =>
-            moveHistory       = moveHistory :+ head
-            futureMoveHistory = rest
-          case Nil => ()
-        gameState         = newState
-        val (cw, cb)      = recomputeCaptures(newState)
-        capturedWhite     = cw
-        capturedBlack     = cb
-        boardComponent.updateState(newState)
-        sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
-      }
+    // Observer: sync TUI whenever the model changes (including from FX UI).
+    // Wrapped in invokeLater so it always runs on the Lanterna GUI thread.
+    model.addObserver { s =>
+      try gui.getGUIThread.invokeLater(() => syncUiFrom(s))
+      catch case _: Exception => ()
+    }
+
     def doImportFen(): Unit =
       ChessDialog.showImport(gui, "Import FEN", "Paste a FEN string:").foreach { input =>
-        Fen.decode(input.trim) match
-          case Right(sit) => refreshFromState(GameState(Nil, sit))
-          case Left(err)  => ChessDialog.showExport(gui, "FEN Error", err)
+        model.importFen(input.trim) match
+          case Left(err) => ChessDialog.showExport(gui, "FEN Error", err)
+          case Right(()) => ()
       }
+
     def doExportFen(): Unit =
-      ChessDialog.showExport(gui, "Export FEN", Fen.encode(gameState.current))
+      ChessDialog.showExport(gui, "Export FEN", model.exportFen())
+
     def doImportPgn(): Unit =
       ChessDialog.showImport(gui, "Import PGN", "Paste a PGN string:").foreach { input =>
-        Pgn.decode(input.trim, StandardRules) match
-          case Right(newState) => refreshFromState(newState)
-          case Left(err)       => ChessDialog.showExport(gui, "PGN Error", err)
+        model.importPgn(input.trim) match
+          case Left(err) => ChessDialog.showExport(gui, "PGN Error", err)
+          case Right(()) => ()
       }
+
     def doExportPgn(): Unit =
-      ChessDialog.showExport(gui, "Export PGN", Pgn.encode(gameState, StandardRules))
+      ChessDialog.showExport(gui, "Export PGN", model.exportPgn())
+
     def doResign(): Unit =
-      val resigning = if gameState.current.turn == Color.White then "White" else "Black"
-      val winner    = if gameState.current.turn == Color.White then "Black" else "White"
-      sidePanel.showResult(resigning + " resigned. " + winner + " wins.")
+      val turn   = model.state.game.current.turn
+      val loser  = if turn == Color.White then "White" else "Black"
+      val winner = if turn == Color.White then "Black" else "White"
+      sidePanel.showResult(loser + " resigned. " + winner + " wins.")
       boardComponent.setBoardEnabled(false)
 
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
-      'n' -> (() => doNewGame()),
+      'n' -> (() => model.newGame()),
       'r' -> (() => doResign()),
-      'z' -> (() => doUndo()),
-      'y' -> (() => doRedo()),
+      'z' -> (() => model.undo()),
+      'y' -> (() => model.redo()),
       'f' -> (() => doImportFen()),
       'e' -> (() => doExportFen()),
       'p' -> (() => doImportPgn()),
       'o' -> (() => doExportPgn())
     )
 
-    lazy val boardComponent: BoardComponent = new BoardComponent(gameState, move => {
+    lazy val boardComponent: BoardComponent = new BoardComponent(model.state.game, move => {
       val finalMove = move match
         case nm: NormalMove if nm.promotion.isDefined =>
           NormalMove(nm.from, nm.to, Some(PromotionDialog.show(gui)))
         case _ => move
-
-      ctrl.applyMove(gameState, finalMove) match
-        case Right(newState) =>
-          val newCaptures = SidePanel.capturedPieces(
-            gameState.current.board,
-            newState.current.board,
-            gameState.current.turn
-          )
-          if gameState.current.turn == Color.White then
-            capturedWhite = capturedWhite ++ newCaptures
-          else
-            capturedBlack = capturedBlack ++ newCaptures
-          moveHistory       = moveHistory :+ SidePanel.moveNotation(finalMove)
-          futureMoveHistory = List.empty
-          gameState         = newState
-          boardComponent.updateState(newState)
-          sidePanel.update(newState, moveHistory, capturedWhite, capturedBlack)
-          ctrl.gameResult(newState).foreach { result =>
-            sidePanel.showResult(resultMessage(result))
-            boardComponent.setBoardEnabled(false)
-          }
-        case Left(_) => ()
+      val notation = SidePanel.moveNotation(finalMove)
+      model.applyMove(finalMove, notation)
+      ()
     }, shortcutMap)
 
     val menuBar = new MenuBar(
-      onNewGame   = () => doNewGame(),
+      onNewGame   = () => model.newGame(),
       onResign    = () => doResign(),
-      onUndo      = () => doUndo(),
-      onRedo      = () => doRedo(),
+      onUndo      = () => model.undo(),
+      onRedo      = () => model.redo(),
       onImportFen = () => doImportFen(),
       onExportFen = () => doExportFen(),
       onImportPgn = () => doImportPgn(),
@@ -148,6 +111,7 @@ object LanternaUI:
 
     val window = new BasicWindow("MaiChess")
     window.setComponent(mainPanel)
+    model.addShutdownObserver(() => window.close())
     val _ = gui.addWindowAndWait(window)
 
   private def resultMessage(result: GameResult): String = result match
@@ -160,7 +124,27 @@ object LanternaUI:
     case GameResult.Draw(DrawReason.Agreement)            => "Draw by agreement."
 
 @main def runGame(): Unit =
-  val ctrl      = new GameController(StandardRules)
+  // Suppress JavaFX startup log messages before they can reach the terminal
+  // and corrupt Lanterna's raw-mode display.
+  java.util.logging.Logger.getLogger("com.sun.javafx").setLevel(java.util.logging.Level.OFF)
+  java.util.logging.Logger.getLogger("com.sun.glass").setLevel(java.util.logging.Level.OFF)
+
+  val ctrl  = new GameController(StandardRules)
+  val model = new SharedGameModel(ctrl)
+
+  // Start JavaFX asynchronously (non-blocking).  Platform.startup fires the
+  // runnable on the FX Application Thread; we wait until the window is shown
+  // before touching the terminal, so all FX init noise is flushed first.
+  javafx.application.Platform.setImplicitExit(false)
+  val fxReady = new java.util.concurrent.CountDownLatch(1)
+  javafx.application.Platform.startup(() =>
+    val stage = new javafx.stage.Stage()
+    FxUI.start(model, stage)
+    fxReady.countDown()
+  )
+  fxReady.await()
+
+  // Run Lanterna on the main thread — same as the original single-UI setup.
   val factory   = new DefaultTerminalFactory()
   val isWindows = System.getProperty("os.name").toLowerCase.contains("win")
   if isWindows then
@@ -168,11 +152,12 @@ object LanternaUI:
     factory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font))
   else
     factory.setForceTextTerminal(true)
+
   val terminal = factory.createTerminal()
   terminal match
     case t: ExtendedTerminal => t.setMouseCaptureMode(MouseCaptureMode.CLICK_RELEASE)
     case _                   => ()
-  val screen   = new TerminalScreen(terminal)
+  val screen = new TerminalScreen(terminal)
   screen.startScreen()
   try
     val gui = new MultiWindowTextGUI(
@@ -180,7 +165,8 @@ object LanternaUI:
       new DefaultWindowManager(),
       new EmptySpace(TextColor.ANSI.BLACK)
     )
-    LanternaUI.start(ctrl, gui)
+    LanternaUI.start(model, gui)
   finally
     screen.stopScreen()
     terminal.close()
+    javafx.application.Platform.exit()

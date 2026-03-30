@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(sbt test:*)"
+      "Bash(sbt test:*)",
+      "Bash(jar tf:*)",
+      "Bash(sbt \"uiText/compile\")"
     ]
   }
 }
