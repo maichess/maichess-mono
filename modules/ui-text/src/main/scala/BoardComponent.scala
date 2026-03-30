@@ -49,19 +49,22 @@ object BoardComponent:
 
   private object Renderer extends InteractableRenderer[BoardComponent]:
     override def getPreferredSize(component: BoardComponent): TerminalSize =
-      new TerminalSize(24, 8)   // 8 files × 3 chars wide, 8 ranks × 1 row tall
+      new TerminalSize(25, 9)   // rank label + 8 files × 3 chars wide, 8 ranks × 1 row tall + file label row
 
     override def getCursorLocation(component: BoardComponent): TerminalPosition =
       val sq = UIState.cursorSquare(component.cursorStateSnapshot)
-      new TerminalPosition(sq.file.toInt * 3 + 1, 7 - sq.rank.toInt)
+      new TerminalPosition(1 + sq.file.toInt * 3 + 1, 7 - sq.rank.toInt)
 
     override def drawComponent(graphics: TextGUIGraphics, component: BoardComponent): Unit =
-      val board = component.snapshot.current.board
-      val hl    = component.currentHighlights
+      val board    = component.snapshot.current.board
+      val hl       = component.currentHighlights
+      val labelFg  = TextColor.ANSI.WHITE
+      val labelBg  = TextColor.ANSI.DEFAULT
       for ri <- 7 to 0 by -1 do
         val row = 7 - ri
+        val _ = graphics.setCharacter(0, row, new TextCharacter(('1' + ri).toChar, labelFg, labelBg))
         for fi <- 0 to 7 do
-          val col = fi * 3
+          val col = 1 + fi * 3
           val optSq = for f <- File.fromInt(fi); r <- Rank.fromInt(ri) yield Square(f, r)
           optSq.foreach { square =>
             val tc    = renderSquare(board, square, hl)
@@ -70,6 +73,8 @@ object BoardComponent:
             val _ = graphics.setCharacter(col + 1, row, tc)
             val _ = graphics.setCharacter(col + 2, row, space)
           }
+      for fi <- 0 to 7 do
+        val _ = graphics.setCharacter(1 + fi * 3 + 1, 8, new TextCharacter(('a' + fi).toChar, labelFg, labelBg))
 
 @SuppressWarnings(Array("org.wartremover.warts.Var"))
 class BoardComponent(
@@ -158,12 +163,16 @@ class BoardComponent(
 
   private def handleMouse(ma: MouseAction): Interactable.Result =
     if ma.getActionType == MouseActionType.CLICK_DOWN then
-      val origin = toGlobal(TerminalPosition.TOP_LEFT_CORNER)
-      val pos    = ma.getPosition
-      val fi     = (pos.getColumn - origin.getColumn) / 3
-      val ri     = 7 - (pos.getRow - origin.getRow)
-      val optCs = for f <- File.fromInt(fi); r <- Rank.fromInt(ri)
-        yield handleSquareClick(Square(f, r))
+      val origin   = toGlobal(TerminalPosition.TOP_LEFT_CORNER)
+      val pos      = ma.getPosition
+      val boardCol = pos.getColumn - origin.getColumn - 1
+      val fi       = boardCol / 3
+      val ri       = 7 - (pos.getRow - origin.getRow)
+      val optCs = for
+        _ <- Option.when(boardCol >= 0)(())
+        f <- File.fromInt(fi)
+        r <- Rank.fromInt(ri)
+      yield handleSquareClick(Square(f, r))
       optCs match
         case Some(cs) =>
           cursorState = cs
