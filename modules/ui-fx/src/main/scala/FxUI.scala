@@ -4,7 +4,7 @@ import javafx.application.Platform
 import javafx.geometry.Insets
 import javafx.scene.Scene
 import javafx.scene.control.{Alert, Button, ButtonType, TextArea, ToolBar}
-import javafx.scene.input.{Clipboard, ClipboardContent}
+import javafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyEvent}
 import javafx.scene.layout.{BorderPane, HBox, VBox}
 import javafx.stage.{Modality, Stage, WindowEvent}
 import java.util.concurrent.atomic.AtomicReference
@@ -35,17 +35,14 @@ object FxUI:
         board.setBoardEnabled(false)
       }
 
-    // Initial render
     val (cw0, cb0) = recomputeCaptures(init.game)
     side.update(init.game, init.moveHistory, cw0, cb0)
 
-    // Observer: called from any thread after model changes
     model.addObserver { s =>
       try Platform.runLater(() => refresh(s))
       catch case _: Exception => ()
     }
 
-    // Pawn promotion dialog (runs on JAT since called from canvas click handler)
     def askPromotion(): PieceType =
       val alert = new Alert(Alert.AlertType.CONFIRMATION)
       alert.setTitle("Pawn Promotion")
@@ -72,39 +69,48 @@ object FxUI:
       ()
     }
 
-    def btn(label: String)(action: => Unit): Button =
-      val b = new Button(label)
-      b.setOnAction(_ => action)
-      b
+    def doResign(): Unit =
+      val turn   = model.state.game.current.turn
+      val loser  = if turn == Color.White then "White" else "Black"
+      val winner = if turn == Color.White then "Black" else "White"
+      side.showResult(loser + " resigned. " + winner + " wins.")
+      board.setBoardEnabled(false)
 
-    val toolbar = new ToolBar(
-      btn("New")        { model.newGame() },
-      btn("Undo")       { model.undo() },
-      btn("Redo")       { model.redo() },
-      btn("Import FEN") {
-        showImportDialog("Import FEN", stage).foreach { input =>
-          model.importFen(input.trim) match
-            case Left(err) => showExportDialog("FEN Error", err, stage)
-            case Right(()) => ()
-        }
-      },
-      btn("Export FEN") { showExportDialog("Export FEN", model.exportFen(), stage) },
-      btn("Import PGN") {
-        showImportDialog("Import PGN", stage).foreach { input =>
-          model.importPgn(input.trim) match
-            case Left(err) => showExportDialog("PGN Error", err, stage)
-            case Right(()) => ()
-        }
-      },
-      btn("Export PGN") { showExportDialog("Export PGN", model.exportPgn(), stage) },
-      btn("Resign") {
-        val turn   = model.state.game.current.turn
-        val loser  = if turn == Color.White then "White" else "Black"
-        val winner = if turn == Color.White then "Black" else "White"
-        side.showResult(loser + " resigned. " + winner + " wins.")
-        board.setBoardEnabled(false)
+    def doImportFen(): Unit =
+      showImportDialog("Import FEN", stage).foreach { input =>
+        model.importFen(input.trim) match
+          case Left(err) => showExportDialog("FEN Error", err, stage)
+          case Right(()) => ()
       }
+
+    def doExportFen(): Unit = showExportDialog("Export FEN", model.exportFen(), stage)
+
+    def doImportPgn(): Unit =
+      showImportDialog("Import PGN", stage).foreach { input =>
+        model.importPgn(input.trim) match
+          case Left(err) => showExportDialog("PGN Error", err, stage)
+          case Right(()) => ()
+      }
+
+    def doExportPgn(): Unit = showExportDialog("Export PGN", model.exportPgn(), stage)
+
+    val actions: List[(KeyBinding, () => Unit)] = List(
+      (Keymap.newGame,   () => model.newGame()),
+      (Keymap.undo,      () => model.undo()),
+      (Keymap.redo,      () => model.redo()),
+      (Keymap.importFen, () => doImportFen()),
+      (Keymap.exportFen, () => doExportFen()),
+      (Keymap.importPgn, () => doImportPgn()),
+      (Keymap.exportPgn, () => doExportPgn()),
+      (Keymap.resign,    () => doResign())
     )
+
+    val toolbarButtons = actions.map { (kb, action) =>
+      val b = new Button(kb.buttonLabel)
+      b.setOnAction(_ => action())
+      b
+    }
+    val toolbar = new ToolBar(toolbarButtons: _*)
 
     val root = new BorderPane()
     root.setTop(toolbar)
@@ -112,8 +118,21 @@ object FxUI:
     root.setRight(side.vbox)
     BorderPane.setMargin(board.canvas, new Insets(8))
 
+    val kbMap: Map[KeyCode, () => Unit] = actions.flatMap { (kb, action) =>
+      Option(KeyCode.getKeyCode(kb.key.toUpper.toString)).map(_ -> action)
+    }.toMap
+
+    val scene = new Scene(root)
+    scene.addEventFilter(KeyEvent.KEY_PRESSED, (event: KeyEvent) => {
+      if !event.isControlDown && !event.isAltDown && !event.isMetaDown then
+        kbMap.get(event.getCode).foreach { action =>
+          action()
+          event.consume()
+        }
+    })
+
     stage.setTitle("MaiChess")
-    stage.setScene(new Scene(root))
+    stage.setScene(scene)
     stage.setOnCloseRequest { (_: WindowEvent) =>
       model.shutdown()
       Platform.exit()
@@ -180,11 +199,11 @@ object FxUI:
     opponentBefore diff opponentAfter
 
   private def moveNotation(move: Move): String = move match
-    case NormalMove(from, to, None)     => from.toAlgebraic + "-" + to.toAlgebraic
-    case NormalMove(from, to, Some(pt)) => from.toAlgebraic + "-" + to.toAlgebraic + "=" + promoLetter(pt)
+    case NormalMove(from, to, None)         => from.toAlgebraic + "-" + to.toAlgebraic
+    case NormalMove(from, to, Some(pt))     => from.toAlgebraic + "-" + to.toAlgebraic + "=" + promoLetter(pt)
     case CastlingMove(from, _, rookFrom, _) =>
       if rookFrom.file.toInt > from.file.toInt then "O-O" else "O-O-O"
-    case EnPassantMove(from, to, _) => from.toAlgebraic + "-" + to.toAlgebraic
+    case EnPassantMove(from, to, _)         => from.toAlgebraic + "-" + to.toAlgebraic
 
   private def promoLetter(pt: PieceType): String = pt match
     case PieceType.Queen  => "Q"

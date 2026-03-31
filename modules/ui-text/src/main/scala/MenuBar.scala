@@ -1,6 +1,7 @@
 package org.maichess.mono.ui
 
 import com.googlecode.lanterna.gui2.{Button, GridLayout, Panel}
+import org.maichess.mono.uifx.Keymap
 
 class MenuBar(
   onNewGame:   () => Unit,
@@ -18,11 +19,11 @@ class MenuBar(
       def run(): Unit = action()
     )
 
-  val _ = addComponent(btn("N New",    onNewGame))
-  val _ = addComponent(btn("R Resign", onResign))
-  val _ = addComponent(btn("Z Undo",   onUndo))
-  val _ = addComponent(btn("Y Redo",   onRedo))
-  val _ = addComponent(btn("F Imp FEN", onImportFen))
-  val _ = addComponent(btn("E Exp FEN", onExportFen))
-  val _ = addComponent(btn("P Imp PGN", onImportPgn))
-  val _ = addComponent(btn("O Exp PGN", onExportPgn))
+  val _ = addComponent(btn(Keymap.newGame.buttonLabel,   onNewGame))
+  val _ = addComponent(btn(Keymap.resign.buttonLabel,    onResign))
+  val _ = addComponent(btn(Keymap.undo.buttonLabel,      onUndo))
+  val _ = addComponent(btn(Keymap.redo.buttonLabel,      onRedo))
+  val _ = addComponent(btn(Keymap.importFen.buttonLabel, onImportFen))
+  val _ = addComponent(btn(Keymap.exportFen.buttonLabel, onExportFen))
+  val _ = addComponent(btn(Keymap.importPgn.buttonLabel, onImportPgn))
+  val _ = addComponent(btn(Keymap.exportPgn.buttonLabel, onExportPgn))

@@ -9,7 +9,7 @@ import java.awt.Font
 import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, Pgn}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.{StandardRules, Situation}
-import org.maichess.mono.uifx.{Change, FxUI, SharedGameModel}
+import org.maichess.mono.uifx.{Change, FxUI, Keymap, SharedGameModel}
 
 object LanternaUI:
 
@@ -73,14 +73,14 @@ object LanternaUI:
       boardComponent.setBoardEnabled(false)
 
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
-      'n' -> (() => model.newGame()),
-      'r' -> (() => doResign()),
-      'z' -> (() => model.undo()),
-      'y' -> (() => model.redo()),
-      'f' -> (() => doImportFen()),
-      'e' -> (() => doExportFen()),
-      'p' -> (() => doImportPgn()),
-      'o' -> (() => doExportPgn())
+      Keymap.newGame.key   -> (() => model.newGame()),
+      Keymap.resign.key    -> (() => doResign()),
+      Keymap.undo.key      -> (() => model.undo()),
+      Keymap.redo.key      -> (() => model.redo()),
+      Keymap.importFen.key -> (() => doImportFen()),
+      Keymap.exportFen.key -> (() => doExportFen()),
+      Keymap.importPgn.key -> (() => doImportPgn()),
+      Keymap.exportPgn.key -> (() => doExportPgn())
     )
 
     lazy val boardComponent: BoardComponent = new BoardComponent(model.state.game, move => {

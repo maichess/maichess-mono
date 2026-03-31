@@ -1,0 +1,46 @@
+package org.maichess.mono.tests
+
+import munit.FunSuite
+import org.maichess.mono.uifx.{KeyBinding, Keymap}
+
+class KeymapSuite extends FunSuite:
+
+  private val allBindings: List[KeyBinding] = List(
+    Keymap.newGame, Keymap.resign, Keymap.undo, Keymap.redo,
+    Keymap.importFen, Keymap.exportFen, Keymap.importPgn, Keymap.exportPgn
+  )
+
+  test("all keys are distinct — no conflicts"):
+    val keys = allBindings.map(_.key)
+    assertEquals(keys.distinct.length, keys.length)
+
+  test("buttonLabel formats as 'KEY label'"):
+    assertEquals(Keymap.newGame.buttonLabel,   "N New")
+    assertEquals(Keymap.resign.buttonLabel,    "R Resign")
+    assertEquals(Keymap.undo.buttonLabel,      "Z Undo")
+    assertEquals(Keymap.redo.buttonLabel,      "Y Redo")
+    assertEquals(Keymap.importFen.buttonLabel, "F Import FEN")
+    assertEquals(Keymap.exportFen.buttonLabel, "E Export FEN")
+    assertEquals(Keymap.importPgn.buttonLabel, "P Import PGN")
+    assertEquals(Keymap.exportPgn.buttonLabel, "O Export PGN")
+
+  test("key values match TUI shortcuts"):
+    assertEquals(Keymap.newGame.key,   'n')
+    assertEquals(Keymap.resign.key,    'r')
+    assertEquals(Keymap.undo.key,      'z')
+    assertEquals(Keymap.redo.key,      'y')
+    assertEquals(Keymap.importFen.key, 'f')
+    assertEquals(Keymap.exportFen.key, 'e')
+    assertEquals(Keymap.importPgn.key, 'p')
+    assertEquals(Keymap.exportPgn.key, 'o')
+
+  test("all keys are lowercase"):
+    allBindings.foreach(kb => assert(kb.key.isLower, s"${kb.key} is not lowercase"))
+
+  test("buttonLabel prefix is uppercase of key"):
+    allBindings.foreach { kb =>
+      assert(
+        kb.buttonLabel.startsWith(kb.key.toUpper.toString),
+        s"${kb.buttonLabel} does not start with ${kb.key.toUpper}"
+      )
+    }
