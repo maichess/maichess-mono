@@ -16,6 +16,7 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
   private var selected   = Option.empty[Square]
   private var legalMoves = List.empty[Move]
   private var enabled    = true
+  private var flipped    = false
   var onMove: Move => Unit = _ => ()
 
   canvas.setOnMouseClicked((e: MouseEvent) => if enabled then handleClick(e))
@@ -30,9 +31,21 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
   def setBoardEnabled(flag: Boolean): Unit =
     enabled = flag
 
+  def setFlipped(flag: Boolean): Unit =
+    flipped = flag
+    draw()
+
+  private def toFile(pixelX: Double): Int =
+    val raw = (pixelX / squareSize).toInt
+    if flipped then 7 - raw else raw
+
+  private def toRank(pixelY: Double): Int =
+    val raw = (pixelY / squareSize).toInt
+    if flipped then raw else 7 - raw
+
   private def handleClick(e: MouseEvent): Unit =
-    val fi = (e.getX / squareSize).toInt
-    val ri = 7 - (e.getY / squareSize).toInt
+    val fi = toFile(e.getX)
+    val ri = toRank(e.getY)
     for f <- File.fromInt(fi); r <- Rank.fromInt(ri) do
       clickSquare(Square(f, r))
 
@@ -61,6 +74,9 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
               legalMoves = moves
             draw()
 
+  private def sqX(fi: Int): Double = if flipped then (7 - fi) * squareSize else fi * squareSize
+  private def sqY(ri: Int): Double = if flipped then ri * squareSize else (7 - ri) * squareSize
+
   private def draw(): Unit =
     gc.clearRect(0, 0, canvas.getWidth, canvas.getHeight)
     for ri <- 0 to 7; fi <- 0 to 7 do
@@ -69,8 +85,8 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
     drawLabels()
 
   private def drawSquare(sq: Square, fi: Int, ri: Int): Unit =
-    val x       = fi * squareSize
-    val y       = (7 - ri) * squareSize
+    val x       = sqX(fi)
+    val y       = sqY(ri)
     val isLight = (fi + ri) % 2 != 0
 
     val bg = selected match
@@ -94,16 +110,23 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
       gc.fillText(pieceChar(piece).toString, x + squareSize / 2, y + squareSize * 0.80)
     }
 
+  private def isLightSquare(fi: Int, ri: Int): Boolean = (fi + ri) % 2 != 0
+
   private def drawLabels(): Unit =
     gc.setFont(Font.font("SansSerif", 10))
     gc.setTextAlign(TextAlignment.LEFT)
-    for i <- 0 to 7 do
-      gc.setFill(if (7 - i) % 2 == 0 then JColor.rgb(240, 217, 181) else JColor.rgb(181, 136, 99))
-      gc.fillText((8 - i).toString, 2, i * squareSize + 12)
-    for i <- 0 to 7 do
-      val file = ('a' + i).toChar.toString
-      gc.setFill(if i % 2 != 0 then JColor.rgb(240, 217, 181) else JColor.rgb(181, 136, 99))
-      gc.fillText(file, i * squareSize + squareSize - 10, canvas.getHeight - 3)
+    for row <- 0 to 7 do
+      val ri      = if flipped then row else 7 - row
+      val label   = (ri + 1).toString
+      val isLight = isLightSquare(0, ri)
+      gc.setFill(if isLight then JColor.rgb(181, 136, 99) else JColor.rgb(240, 217, 181))
+      gc.fillText(label, 2, row * squareSize + 12)
+    for col <- 0 to 7 do
+      val fi      = if flipped then 7 - col else col
+      val label   = ('a' + fi).toChar.toString
+      val isLight = isLightSquare(fi, 0)
+      gc.setFill(if isLight then JColor.rgb(181, 136, 99) else JColor.rgb(240, 217, 181))
+      gc.fillText(label, col * squareSize + squareSize - 10, canvas.getHeight - 3)
 
   private def pieceChar(piece: Piece): Char = piece.color match
     case Color.White => piece.pieceType match

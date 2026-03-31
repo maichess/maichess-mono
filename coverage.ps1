@@ -1,6 +1,6 @@
 $ScalaVersion = "3.8.2"
 $ReportFile   = "coverage-report.html"
-$Modules      = @("model", "rules", "engine")
+$Modules      = @("model", "rules", "engine", "bots")
 
 Write-Host "=== Running coverage build ==="
 $ErrorActionPreference = "Continue"

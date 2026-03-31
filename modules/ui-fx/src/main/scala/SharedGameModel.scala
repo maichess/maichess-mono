@@ -139,6 +139,7 @@ class SharedGameModel(ctrl: GameController):
     case PieceType.King   => "K"
     case PieceType.Pawn   => "P"
 
+  def hasBot: Boolean                  = synchronized { activeBot.isDefined }
   def exportFen(): String              = Fen.encode(state.game.current)
   def exportPgn(): String              = Pgn.encode(state.game, StandardRules)
   def gameResult(): Option[GameResult] = ctrl.gameResult(state.game)

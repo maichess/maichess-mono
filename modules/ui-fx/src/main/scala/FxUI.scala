@@ -1,12 +1,14 @@
 package org.maichess.mono.uifx
 
+import javafx.animation.{Animation, KeyFrame, Timeline}
 import javafx.application.Platform
-import javafx.geometry.Insets
+import javafx.geometry.{Insets, Pos}
 import javafx.scene.Scene
-import javafx.scene.control.{Alert, Button, ButtonType, TextArea, ToolBar}
+import javafx.scene.control.{Alert, Button, ButtonType, Label, TextArea, ToolBar}
 import javafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyEvent}
-import javafx.scene.layout.{BorderPane, HBox, VBox}
+import javafx.scene.layout.{BorderPane, HBox, StackPane, VBox}
 import javafx.stage.{Modality, Stage, WindowEvent}
+import javafx.util.Duration
 import java.util.concurrent.atomic.AtomicReference
 import org.maichess.mono.bots.BotRegistry
 import org.maichess.mono.engine.{DrawReason, GameResult, GameState}
@@ -27,14 +29,37 @@ object FxUI:
           if before.turn == Color.White then (cw ++ caps, cb) else (cw, cb ++ caps)
       }
 
+    // ── Thinking indicator ────────────────────────────────────────────────────
+    val thinkingPieces = Array("\u265e", "\u265d", "\u265c", "\u265b", "\u265a", "\u265f")
+    var thinkingIdx    = 0
+    val thinkingLabel  = new Label("AI thinking...  \u265e")
+    thinkingLabel.setStyle(
+      "-fx-font-size: 18px; -fx-text-fill: white;" +
+      " -fx-background-color: rgba(0,0,0,0.65); -fx-padding: 10 18 10 18;" +
+      " -fx-background-radius: 6;"
+    )
+    thinkingLabel.setVisible(false)
+    val thinkingAnim = new Timeline(new KeyFrame(Duration.millis(350), _ => {
+      thinkingIdx = (thinkingIdx + 1) % thinkingPieces.length
+      thinkingLabel.setText("AI thinking...  " + thinkingPieces(thinkingIdx))
+    }))
+    thinkingAnim.setCycleCount(Animation.INDEFINITE)
+
     def refresh(s: SharedGameModel.State): Unit =
+      board.setFlipped(!model.hasBot && s.game.current.turn == Color.Black)
       board.updateState(s.game)
       val (cw, cb) = recomputeCaptures(s.game)
       side.update(s.game, s.moveHistory, cw, cb)
-      model.gameResult().foreach { result =>
-        side.showResult(resultMessage(result))
-        board.setBoardEnabled(false)
-      }
+      val isOver      = model.gameResult().isDefined
+      val isThinking  = model.hasBot && !isOver && s.game.current.turn == Color.Black
+      model.gameResult().foreach(r => side.showResult(resultMessage(r)))
+      board.setBoardEnabled(!isOver && !isThinking)
+      if isThinking then
+        thinkingLabel.setVisible(true)
+        if thinkingAnim.getStatus != Animation.Status.RUNNING then thinkingAnim.play()
+      else
+        thinkingLabel.setVisible(false)
+        thinkingAnim.stop()
 
     val (cw0, cb0) = recomputeCaptures(init.game)
     side.update(init.game, init.moveHistory, cw0, cb0)
@@ -128,11 +153,14 @@ object FxUI:
     }
     val toolbar = new ToolBar(toolbarButtons: _*)
 
+    val boardStack = new StackPane(board.canvas, thinkingLabel)
+    StackPane.setAlignment(thinkingLabel, Pos.CENTER)
+
     val root = new BorderPane()
     root.setTop(toolbar)
-    root.setCenter(board.canvas)
+    root.setCenter(boardStack)
     root.setRight(side.vbox)
-    BorderPane.setMargin(board.canvas, new Insets(8))
+    BorderPane.setMargin(boardStack, new Insets(8))
 
     val kbMap: Map[KeyCode, () => Unit] = actions.flatMap { (kb, action) =>
       Option(KeyCode.getKeyCode(kb.key.toUpper.toString)).map(_ -> action)

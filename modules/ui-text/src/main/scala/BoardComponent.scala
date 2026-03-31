@@ -52,29 +52,38 @@ object BoardComponent:
       new TerminalSize(25, 9)   // rank label + 8 files × 3 chars wide, 8 ranks × 1 row tall + file label row
 
     override def getCursorLocation(component: BoardComponent): TerminalPosition =
-      val sq = UIState.cursorSquare(component.cursorStateSnapshot)
-      new TerminalPosition(1 + sq.file.toInt * 3 + 1, 7 - sq.rank.toInt)
+      val sq  = UIState.cursorSquare(component.cursorStateSnapshot)
+      val col = if component.flipped then 1 + (7 - sq.file.toInt) * 3 + 1
+                else                      1 + sq.file.toInt * 3 + 1
+      val row = if component.flipped then sq.rank.toInt
+                else                      7 - sq.rank.toInt
+      new TerminalPosition(col, row)
 
     override def drawComponent(graphics: TextGUIGraphics, component: BoardComponent): Unit =
-      val board    = component.snapshot.current.board
-      val hl       = component.currentHighlights
-      val labelFg  = TextColor.ANSI.WHITE
-      val labelBg  = TextColor.ANSI.DEFAULT
-      for ri <- 7 to 0 by -1 do
-        val row = 7 - ri
-        val _ = graphics.setCharacter(0, row, new TextCharacter(('1' + ri).toChar, labelFg, labelBg))
-        for fi <- 0 to 7 do
-          val col = 1 + fi * 3
+      val board   = component.snapshot.current.board
+      val hl      = component.currentHighlights
+      val flipped = component.flipped
+      val labelFg = TextColor.ANSI.WHITE
+      val labelBg = TextColor.ANSI.DEFAULT
+      for rowIdx <- 0 to 7 do
+        val ri    = if flipped then rowIdx else 7 - rowIdx
+        val rankC = ('1' + ri).toChar
+        val _ = graphics.setCharacter(0, rowIdx, new TextCharacter(rankC, labelFg, labelBg))
+        for colIdx <- 0 to 7 do
+          val fi    = if flipped then 7 - colIdx else colIdx
+          val col   = 1 + colIdx * 3
           val optSq = for f <- File.fromInt(fi); r <- Rank.fromInt(ri) yield Square(f, r)
           optSq.foreach { square =>
             val tc    = renderSquare(board, square, hl)
             val space = new TextCharacter(' ', tc.getForegroundColor, tc.getBackgroundColor)
-            val _ = graphics.setCharacter(col,     row, space)
-            val _ = graphics.setCharacter(col + 1, row, tc)
-            val _ = graphics.setCharacter(col + 2, row, space)
+            val _ = graphics.setCharacter(col,     rowIdx, space)
+            val _ = graphics.setCharacter(col + 1, rowIdx, tc)
+            val _ = graphics.setCharacter(col + 2, rowIdx, space)
           }
-      for fi <- 0 to 7 do
-        val _ = graphics.setCharacter(1 + fi * 3 + 1, 8, new TextCharacter(('a' + fi).toChar, labelFg, labelBg))
+      for colIdx <- 0 to 7 do
+        val fi    = if flipped then 7 - colIdx else colIdx
+        val label = ('a' + fi).toChar
+        val _ = graphics.setCharacter(1 + colIdx * 3 + 1, 8, new TextCharacter(label, labelFg, labelBg))
 
 @SuppressWarnings(Array("org.wartremover.warts.Var"))
 class BoardComponent(
@@ -83,9 +92,10 @@ class BoardComponent(
   shortcuts: Map[Char, () => Unit]
 ) extends AbstractInteractableComponent[BoardComponent]:
 
-  private var gameState:      GameState   = initialState
-  private var cursorState:    CursorState = initialCursorState
-  private var boardEnabled: Boolean = true
+  private var gameState:    GameState   = initialState
+  private var cursorState:  CursorState = initialCursorState
+  private var boardEnabled: Boolean     = true
+  var flipped:              Boolean     = false
 
   private def initialCursorState: CursorState =
     (for f <- File.fromInt(4); r <- Rank.fromInt(0) yield Square(f, r))
@@ -107,12 +117,16 @@ class BoardComponent(
     invalidate()
 
   def reset(newState: GameState): Unit =
-    gameState = newState
+    gameState   = newState
     cursorState = initialCursorState
     invalidate()
 
   def setBoardEnabled(flag: Boolean): Unit =
     boardEnabled = flag
+
+  def setFlipped(flag: Boolean): Unit =
+    flipped = flag
+    invalidate()
 
   override protected def createDefaultRenderer(): InteractableRenderer[BoardComponent] =
     BoardComponent.Renderer
@@ -135,13 +149,21 @@ class BoardComponent(
         Interactable.Result.HANDLED
       case None => Interactable.Result.UNHANDLED
 
+  private def flipDir(dir: Direction): Direction =
+    if flipped then dir match
+      case Direction.Up    => Direction.Down
+      case Direction.Down  => Direction.Up
+      case Direction.Left  => Direction.Right
+      case Direction.Right => Direction.Left
+    else dir
+
   private def handleKey(key: KeyStroke): Interactable.Result =
     val optNewCs: Option[CursorState] = cursorState match
       case CursorState.Navigating(cursor) => key.getKeyType match
-        case KeyType.ArrowUp    => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Up)))
-        case KeyType.ArrowDown  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Down)))
-        case KeyType.ArrowLeft  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Left)))
-        case KeyType.ArrowRight => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, Direction.Right)))
+        case KeyType.ArrowUp    => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, flipDir(Direction.Up))))
+        case KeyType.ArrowDown  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, flipDir(Direction.Down))))
+        case KeyType.ArrowLeft  => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, flipDir(Direction.Left))))
+        case KeyType.ArrowRight => Some(CursorState.Navigating(UIState.moveCursorFree(cursor, flipDir(Direction.Right))))
         case KeyType.Enter      => selectPiece(cursor)
         case _                  => None
       case CursorState.PieceSelected(from, index, targets) => key.getKeyType match
@@ -166,8 +188,10 @@ class BoardComponent(
       val origin   = toGlobal(TerminalPosition.TOP_LEFT_CORNER)
       val pos      = ma.getPosition
       val boardCol = pos.getColumn - origin.getColumn - 1
-      val fi       = boardCol / 3
-      val ri       = 7 - (pos.getRow - origin.getRow)
+      val rawFi    = boardCol / 3
+      val rawRi    = pos.getRow - origin.getRow
+      val fi       = if flipped then 7 - rawFi else rawFi
+      val ri       = if flipped then rawRi else 7 - rawRi
       val optCs = for
         _ <- Option.when(boardCol >= 0)(())
         f <- File.fromInt(fi)

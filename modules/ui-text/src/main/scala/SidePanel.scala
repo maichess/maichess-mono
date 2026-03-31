@@ -33,11 +33,13 @@ object SidePanel:
 class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
 
   private val statusLabel        = new Label("White to move")
+  private val thinkingLabel      = new Label("")
   private val capturedWhiteLabel = new Label("White captured: ")
   private val capturedBlackLabel = new Label("Black captured: ")
   private val historyPanel       = new Panel(new LinearLayout(LDirection.VERTICAL))
 
   private val _ = addComponent(statusLabel)
+  private val _ = addComponent(thinkingLabel)
   private val _ = addComponent(capturedWhiteLabel)
   private val _ = addComponent(capturedBlackLabel)
   private val _ = addComponent(historyPanel)
@@ -57,6 +59,10 @@ class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
 
   def showResult(message: String): Unit =
     statusLabel.setText(message)
+    thinkingLabel.setText("")
+
+  def showThinking(): Unit  = thinkingLabel.setText("\u265e AI thinking...")
+  def hideThinking(): Unit  = thinkingLabel.setText("")
 
   private def refreshHistory(history: List[String]): Unit =
     val _ = historyPanel.removeAllComponents()

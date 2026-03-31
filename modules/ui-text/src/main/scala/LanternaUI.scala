@@ -25,17 +25,22 @@ object LanternaUI:
       }
 
     def syncUiFrom(s: SharedGameModel.State): Unit =
-      val (cw, cb) = recomputeCaptures(s.game)
+      val (cw, cb)   = recomputeCaptures(s.game)
+      val shouldFlip = !model.hasBot && s.game.current.turn == Color.Black
+      boardComponent.setFlipped(shouldFlip)
       s.change match
         case Change.Reset =>
           boardComponent.reset(s.game)
-          boardComponent.setBoardEnabled(true)
         case _ =>
           boardComponent.updateState(s.game)
       sidePanel.update(s.game, s.moveHistory, cw, cb)
+      val isOver     = model.gameResult().isDefined
+      val isThinking = model.hasBot && !isOver && s.game.current.turn == Color.Black
+      boardComponent.setBoardEnabled(!isOver && !isThinking)
+      if isThinking then sidePanel.showThinking()
+      else               sidePanel.hideThinking()
       model.gameResult().foreach { result =>
         sidePanel.showResult(resultMessage(result))
-        boardComponent.setBoardEnabled(false)
       }
 
     // Observer: sync TUI whenever the model changes (including from FX UI).
