@@ -1,36 +1,45 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Build & Development Commands
+## Commands
 
 ```bash
-sbt compile          # Compile
-sbt run              # Run the application
-sbt test             # Run all tests
-sbt "testOnly *Foo"  # Run a single test class by name pattern
-sbt scalafix         # Run Scalafix linter/rewriter
+sbt compile              # Compile all modules
+sbt test                 # Run all tests (via the tests module)
+sbt "testOnly *Foo"      # Run a single suite by name pattern
+sbt scalafix             # Run Scalafix linter/rewriter
+sbt "uiText/assembly"    # Build the fat JAR (required before running)
+play.bat                 # Build fat JAR + launch the app (Windows)
 ```
 
-WartRemover static analysis runs automatically during `sbt compile` (all `Warts.unsafe` are errors).
+`sbt run` does not work — the entry point is `@main def runGame()` in `modules/ui-text/src/main/scala/LanternaUI.scala`, assembled into `modules/ui-text/target/scala-3.8.2/maichess.jar`.
 
-## Architecture
+## Module structure
 
-- **Language**: Scala 3.8.2, **Build**: sbt 1.12.6
-- **Package root**: `org.maichess.mono`
-- **Linters**: WartRemover (`Warts.unsafe` as compile errors) + Scalafix
-- Entry point: `src/main/scala/main.scala`
+```
+model ← rules ← engine ← ui-fx ← ui-text ← tests
+```
 
-## Code Style
+All tests live in the `tests` module (munit). Test files go in `modules/tests/src/test/scala/`.
 
-- Follow functional programming principles.
-- Functions should do one thing. If you need "and" to describe it, split it.
-- Max ~15–20 lines per function. Decompose if longer.
-- Names must express intent without comments.
-- Do not write comments unless absolutely necessary (e.g., explaining non-obvious algorithms or critical warnings).
-- Prefer early returns over nested conditionals.
-- Before finishing, scan for duplicated logic and extract it.
+## Linters & coverage
 
-# Development
+- **WartRemover** (`Warts.unsafe` as errors) applies to `model`, `rules`, `engine` only — disabled on `ui-fx` and `ui-text`.
+- **100% statement coverage** is enforced on `model`, `rules`, `engine` — disabled on `ui-fx`, `ui-text`, and `tests`.
+- Every change to `model`/`rules`/`engine` must be accompanied by tests maintaining 100% coverage.
 
-- Only change tests when requirements for this specific test change. Don't change tests to make them pass.
+## Architecture decisions
+
+- **`SharedGameModel`** (`ui-fx`) is the shared mutable bridge between both UIs. Both `FxUI` (JavaFX) and `LanternaUI` (Lanterna TUI) observe it via callbacks.
+- **`Keymap`** (`ui-fx`) is the single source of truth for all keyboard shortcuts and button labels. Both UIs derive their shortcut maps and button text from `Keymap` — never hardcode key chars or labels elsewhere.
+- **`GameState.history`** (list of `Situation`, most-recent-first) is the authoritative move history used for undo/redo. `SharedGameModel.moveHistory` (list of notation strings) is a parallel display list that must be kept in sync — see `reconstructMoveHistory` for the PGN-import case.
+
+## Code style
+
+- Functional programming throughout — immutable data, pure functions.
+- Max ~15–20 lines per function. If you need "and" to describe it, split it.
+- No comments unless explaining a non-obvious algorithm. Names carry intent.
+- Scan for duplicated logic before finishing; extract it.
+
+## Tests
+
+- Do not change tests to make them pass — only change tests when the requirement they cover changes.
