@@ -72,8 +72,12 @@ object LanternaUI:
       sidePanel.showResult(loser + " resigned. " + winner + " wins.")
       boardComponent.setBoardEnabled(false)
 
+    def doNewGame(): Unit =
+      val mode = ChessDialog.showModeSelect(gui)
+      model.newGameWithMode(mode)
+
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
-      Keymap.newGame.key   -> (() => model.newGame()),
+      Keymap.newGame.key   -> (() => doNewGame()),
       Keymap.resign.key    -> (() => doResign()),
       Keymap.undo.key      -> (() => model.undo()),
       Keymap.redo.key      -> (() => model.redo()),
@@ -94,7 +98,7 @@ object LanternaUI:
     }, shortcutMap)
 
     val menuBar = new MenuBar(
-      onNewGame   = () => model.newGame(),
+      onNewGame   = () => doNewGame(),
       onResign    = () => doResign(),
       onUndo      = () => model.undo(),
       onRedo      = () => model.redo(),

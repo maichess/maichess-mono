@@ -94,8 +94,21 @@ object FxUI:
 
     def doExportPgn(): Unit = showExportDialog("Export PGN", model.exportPgn(), stage)
 
+    def doNewGame(): Unit =
+      val alert = new Alert(Alert.AlertType.CONFIRMATION)
+      alert.setTitle("New Game")
+      alert.setHeaderText("Choose game mode")
+      alert.initOwner(stage)
+      val hvh = new ButtonType("Human vs Human")
+      val hva = new ButtonType("Human vs AI")
+      alert.getButtonTypes.setAll(hvh, hva)
+      alert.showAndWait().ifPresent { choice =>
+        val mode = if choice == hva then PlayerMode.HumanVsAi else PlayerMode.HumanVsHuman
+        model.newGameWithMode(mode)
+      }
+
     val actions: List[(KeyBinding, () => Unit)] = List(
-      (Keymap.newGame,   () => model.newGame()),
+      (Keymap.newGame,   () => doNewGame()),
       (Keymap.undo,      () => model.undo()),
       (Keymap.redo,      () => model.redo()),
       (Keymap.importFen, () => doImportFen()),

@@ -11,6 +11,12 @@ object StandardRules extends RuleSet:
   private val knightJumps: List[(Int, Int)] =
     List((2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2))
 
+  // ── Pawn configuration helpers ────────────────────────────────────────────
+  // curried: fix color, get the forward direction for that color's pawns
+  private def pawnForward(color: Color): Int    = if color == Color.White then 1  else -1
+  private def pawnStartRank(color: Color): Int  = if color == Color.White then 1  else 6
+  private def pawnPromoRank(color: Color): Int  = if color == Color.White then 7  else 0
+
   // ── Public API ────────────────────────────────────────────────────────────
   def candidateMoves(sit: Situation, sq: Square): List[Move] =
     sit.board.pieceAt(sq).fold(List.empty[Move]) { piece =>
@@ -53,6 +59,7 @@ object StandardRules extends RuleSet:
     dirs.flatMap(dir => castRay(sit.board, from, color, dir))
 
   private def castRay(board: Board, from: Square, color: Color, dir: (Int, Int)): List[Move] =
+    @annotation.tailrec
     def loop(sq: Square, acc: List[Move]): List[Move] =
       sq.offset(dir._1, dir._2) match
         case None       => acc
@@ -86,9 +93,9 @@ object StandardRules extends RuleSet:
 
   // ── Pawn ──────────────────────────────────────────────────────────────────
   private def pawnCandidates(sit: Situation, from: Square, color: Color): List[Move] =
-    val fwd       = if color == Color.White then 1 else -1
-    val startRank = if color == Color.White then 1 else 6
-    val promoRank = if color == Color.White then 7 else 0
+    val fwd       = pawnForward(color)
+    val startRank = pawnStartRank(color)
+    val promoRank = pawnPromoRank(color)
 
     val single = from.offset(0, fwd).filter(to => sit.board.pieceAt(to).isEmpty)
 
@@ -189,7 +196,7 @@ object StandardRules extends RuleSet:
     }
 
   private def squareAttacks(board: Board, from: Square, piece: Piece, target: Square): Boolean =
-    val fwd = if piece.color == Color.White then 1 else -1
+    val fwd = pawnForward(piece.color)
     piece.pieceType match
       case PieceType.Pawn   =>
         from.offset(-1, fwd).contains(target) || from.offset(1, fwd).contains(target)
@@ -203,6 +210,7 @@ object StandardRules extends RuleSet:
 
   private def rayReaches(board: Board, from: Square, dirs: List[(Int, Int)], target: Square): Boolean =
     dirs.exists { dir =>
+      @annotation.tailrec
       def loop(sq: Square): Boolean = sq.offset(dir._1, dir._2) match
         case None                                      => false
         case Some(next) if next == target              => true

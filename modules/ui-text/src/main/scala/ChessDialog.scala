@@ -5,6 +5,7 @@ import com.googlecode.lanterna.gui2.*
 import java.awt.Toolkit
 import java.awt.datatransfer.{DataFlavor, StringSelection}
 import java.util.concurrent.atomic.AtomicReference
+import org.maichess.mono.uifx.PlayerMode
 
 object ChessDialog:
 
@@ -57,6 +58,31 @@ object ChessDialog:
     ))
     val _ = buttonPanel.addComponent(new Button("Cancel", new Runnable:
       def run(): Unit = window.close()
+    ))
+    val _ = panel.addComponent(buttonPanel)
+    window.setComponent(panel)
+    gui.addWindowAndWait(window)
+    result.get()
+
+  /** Shows a two-button dialog for choosing the game mode; returns the chosen PlayerMode. */
+  def showModeSelect(gui: WindowBasedTextGUI): PlayerMode =
+    val result = new AtomicReference[PlayerMode](PlayerMode.HumanVsHuman)
+    val panel  = new Panel(new LinearLayout(Direction.VERTICAL))
+    val _ = panel.addComponent(new Label("Choose game mode:"))
+
+    val window = new BasicWindow("New Game")
+    window.setHints(java.util.Arrays.asList(Window.Hint.CENTERED))
+
+    val buttonPanel = new Panel(new LinearLayout(Direction.HORIZONTAL))
+    val _ = buttonPanel.addComponent(new Button("Human vs Human", new Runnable:
+      def run(): Unit =
+        result.set(PlayerMode.HumanVsHuman)
+        window.close()
+    ))
+    val _ = buttonPanel.addComponent(new Button("Human vs AI", new Runnable:
+      def run(): Unit =
+        result.set(PlayerMode.HumanVsAi)
+        window.close()
     ))
     val _ = panel.addComponent(buttonPanel)
     window.setComponent(panel)
