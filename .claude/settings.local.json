@@ -3,7 +3,9 @@
     "allow": [
       "Bash(sbt test:*)",
       "Bash(jar tf:*)",
-      "Bash(sbt \"uiText/compile\")"
+      "Bash(sbt \"uiText/compile\")",
+      "Bash(sbt \"tests/test\")",
+      "Bash(sbt \"uiText/assembly\")"
     ]
   }
 }

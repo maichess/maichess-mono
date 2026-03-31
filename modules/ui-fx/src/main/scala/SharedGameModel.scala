@@ -89,9 +89,32 @@ class SharedGameModel(ctrl: GameController):
   def importPgn(pgn: String): Either[String, Unit] =
     Pgn.decode(pgn.trim, StandardRules) match
       case Right(g) =>
-        commit(SharedGameModel.State(g, Nil, Nil, Change.Reset))
+        commit(SharedGameModel.State(g, reconstructMoveHistory(g), Nil, Change.Reset))
         Right(())
       case Left(err) => Left(err)
+
+  private def reconstructMoveHistory(game: GameState): List[String] =
+    val situations = (game.current :: game.history).reverse
+    situations.zip(situations.drop(1)).flatMap { case (before, after) =>
+      StandardRules.allLegalMoves(before)
+        .find(m => before.board.applyMove(m) == after.board)
+        .map(moveNotation)
+    }
+
+  private def moveNotation(move: Move): String = move match
+    case NormalMove(from, to, None)         => from.toAlgebraic + "-" + to.toAlgebraic
+    case NormalMove(from, to, Some(pt))     => from.toAlgebraic + "-" + to.toAlgebraic + "=" + promoLetter(pt)
+    case CastlingMove(from, _, rookFrom, _) =>
+      if rookFrom.file.toInt > from.file.toInt then "O-O" else "O-O-O"
+    case EnPassantMove(from, to, _)         => from.toAlgebraic + "-" + to.toAlgebraic
+
+  private def promoLetter(pt: PieceType): String = pt match
+    case PieceType.Queen  => "Q"
+    case PieceType.Rook   => "R"
+    case PieceType.Bishop => "B"
+    case PieceType.Knight => "N"
+    case PieceType.King   => "K"
+    case PieceType.Pawn   => "P"
 
   def exportFen(): String    = Fen.encode(state.game.current)
   def exportPgn(): String    = Pgn.encode(state.game, StandardRules)

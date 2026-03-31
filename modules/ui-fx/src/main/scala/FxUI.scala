@@ -3,9 +3,11 @@ package org.maichess.mono.uifx
 import javafx.application.Platform
 import javafx.geometry.Insets
 import javafx.scene.Scene
-import javafx.scene.control.{Alert, Button, ButtonType, ToolBar}
-import javafx.scene.layout.BorderPane
-import javafx.stage.{Stage, WindowEvent}
+import javafx.scene.control.{Alert, Button, ButtonType, TextArea, ToolBar}
+import javafx.scene.input.{Clipboard, ClipboardContent}
+import javafx.scene.layout.{BorderPane, HBox, VBox}
+import javafx.stage.{Modality, Stage, WindowEvent}
+import java.util.concurrent.atomic.AtomicReference
 import org.maichess.mono.engine.{DrawReason, GameResult, GameState}
 import org.maichess.mono.model.*
 
@@ -76,9 +78,25 @@ object FxUI:
       b
 
     val toolbar = new ToolBar(
-      btn("New")    { model.newGame() },
-      btn("Undo")   { model.undo() },
-      btn("Redo")   { model.redo() },
+      btn("New")        { model.newGame() },
+      btn("Undo")       { model.undo() },
+      btn("Redo")       { model.redo() },
+      btn("Import FEN") {
+        showImportDialog("Import FEN", stage).foreach { input =>
+          model.importFen(input.trim) match
+            case Left(err) => showExportDialog("FEN Error", err, stage)
+            case Right(()) => ()
+        }
+      },
+      btn("Export FEN") { showExportDialog("Export FEN", model.exportFen(), stage) },
+      btn("Import PGN") {
+        showImportDialog("Import PGN", stage).foreach { input =>
+          model.importPgn(input.trim) match
+            case Left(err) => showExportDialog("PGN Error", err, stage)
+            case Right(()) => ()
+        }
+      },
+      btn("Export PGN") { showExportDialog("Export PGN", model.exportPgn(), stage) },
       btn("Resign") {
         val turn   = model.state.game.current.turn
         val loser  = if turn == Color.White then "White" else "Black"
@@ -103,6 +121,58 @@ object FxUI:
     stage.show()
 
   // ── helpers ────────────────────────────────────────────────────────────────
+
+  private def showExportDialog(title: String, content: String, owner: Stage): Unit =
+    val dialog = new Stage()
+    dialog.initOwner(owner)
+    dialog.initModality(Modality.WINDOW_MODAL)
+    dialog.setTitle(title)
+    val ta = new TextArea(content)
+    ta.setEditable(false)
+    ta.setWrapText(true)
+    val copyBtn = new Button("Copy to Clipboard")
+    copyBtn.setOnAction { _ =>
+      val cc = new ClipboardContent()
+      cc.putString(content)
+      val _ = Clipboard.getSystemClipboard.setContent(cc)
+    }
+    val closeBtn = new Button("Close")
+    closeBtn.setOnAction(_ => dialog.close())
+    val buttons = new HBox(8.0)
+    val _ = buttons.getChildren.addAll(copyBtn, closeBtn)
+    val root = new VBox(8.0)
+    val _ = root.getChildren.addAll(ta, buttons)
+    root.setPadding(new Insets(10))
+    dialog.setScene(new Scene(root, 500, 300))
+    dialog.showAndWait()
+
+  private def showImportDialog(title: String, owner: Stage): Option[String] =
+    val result = new AtomicReference[Option[String]](None)
+    val dialog = new Stage()
+    dialog.initOwner(owner)
+    dialog.initModality(Modality.WINDOW_MODAL)
+    dialog.setTitle(title)
+    val ta = new TextArea()
+    ta.setWrapText(true)
+    val pasteBtn = new Button("Paste from Clipboard")
+    pasteBtn.setOnAction { _ =>
+      Option(Clipboard.getSystemClipboard.getString).foreach(ta.setText)
+    }
+    val okBtn = new Button("OK")
+    okBtn.setOnAction { _ =>
+      result.set(Some(ta.getText))
+      dialog.close()
+    }
+    val cancelBtn = new Button("Cancel")
+    cancelBtn.setOnAction(_ => dialog.close())
+    val buttons = new HBox(8.0)
+    val _ = buttons.getChildren.addAll(pasteBtn, okBtn, cancelBtn)
+    val root = new VBox(8.0)
+    val _ = root.getChildren.addAll(ta, buttons)
+    root.setPadding(new Insets(10))
+    dialog.setScene(new Scene(root, 500, 300))
+    dialog.showAndWait()
+    result.get()
 
   private def capturedIn(before: Board, after: Board, movingColor: Color): List[Piece] =
     val opponentBefore = before.pieces.values.filter(_.color != movingColor).toList
