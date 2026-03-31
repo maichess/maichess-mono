@@ -1,6 +1,7 @@
 package org.maichess.mono.uifx
 
-import org.maichess.mono.engine.{Ai, GameController, GameResult, GameState, IllegalMove, Pgn, Fen}
+import org.maichess.mono.bots.Bot
+import org.maichess.mono.engine.{GameController, GameResult, GameState, IllegalMove, Pgn, Fen}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
 
@@ -12,7 +13,7 @@ class SharedGameModel(ctrl: GameController):
     SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset)
   private var observers:         List[SharedGameModel.State => Unit] = Nil
   private var shutdownObservers: List[() => Unit]                   = Nil
-  private var aiProvider: Option[Ai.MoveProvider]                   = None
+  private var activeBot: Option[Bot]                                 = None
 
   def state: SharedGameModel.State = synchronized { current }
 
@@ -33,14 +34,11 @@ class SharedGameModel(ctrl: GameController):
     obs.foreach(_(s))
 
   def newGame(): Unit =
-    synchronized { aiProvider = None }
+    synchronized { activeBot = None }
     commit(SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset))
 
-  def newGameWithMode(mode: PlayerMode): Unit =
-    val provider = mode match
-      case PlayerMode.HumanVsHuman => None
-      case PlayerMode.HumanVsAi   => Some(Ai.bestMove(StandardRules)(Ai.standardEval)(3))
-    synchronized { aiProvider = provider }
+  def newGameWithBot(bot: Option[Bot]): Unit =
+    synchronized { activeBot = bot }
     commit(SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset))
     scheduleAiMoveIfNeeded()
 
@@ -63,11 +61,11 @@ class SharedGameModel(ctrl: GameController):
     moveResult
 
   private def scheduleAiMoveIfNeeded(): Unit =
-    val (provider, st) = synchronized { (aiProvider, current) }
-    provider.foreach { ai =>
+    val (bot, st) = synchronized { (activeBot, current) }
+    bot.foreach { b =>
       if ctrl.gameResult(st.game).isEmpty && st.game.current.turn == Color.Black then
         val thread = new Thread(() => {
-          ai(st.game).foreach { move =>
+          b.chooseMove(st.game).foreach { move =>
             applyMove(move, moveNotation(move))
             ()
           }
@@ -141,8 +139,8 @@ class SharedGameModel(ctrl: GameController):
     case PieceType.King   => "K"
     case PieceType.Pawn   => "P"
 
-  def exportFen(): String    = Fen.encode(state.game.current)
-  def exportPgn(): String    = Pgn.encode(state.game, StandardRules)
+  def exportFen(): String              = Fen.encode(state.game.current)
+  def exportPgn(): String              = Pgn.encode(state.game, StandardRules)
   def gameResult(): Option[GameResult] = ctrl.gameResult(state.game)
 
 object SharedGameModel:

@@ -16,22 +16,24 @@ play.bat                 # Build fat JAR + launch the app (Windows)
 ## Module structure
 
 ```
-model ← rules ← engine ← ui-fx ← ui-text ← tests
+model ← rules ← engine ← bots ← ui-fx ← ui-text ← tests
 ```
 
 All tests live in the `tests` module (munit). Test files go in `modules/tests/src/test/scala/`.
 
 ## Linters & coverage
 
-- **WartRemover** (`Warts.unsafe` as errors) applies to `model`, `rules`, `engine` only — disabled on `ui-fx` and `ui-text`.
-- **100% statement coverage** is enforced on `model`, `rules`, `engine` — disabled on `ui-fx`, `ui-text`, and `tests`.
-- Every change to `model`/`rules`/`engine` must be accompanied by tests maintaining 100% coverage.
+- **WartRemover** (`Warts.unsafe` as errors) applies to `model`, `rules`, `engine`, `bots` only — disabled on `ui-fx` and `ui-text`.
+- **100% statement coverage** is enforced on `model`, `rules`, `engine`, `bots` — disabled on `ui-fx`, `ui-text`, and `tests`.
+- Every change to `model`/`rules`/`engine`/`bots` must be accompanied by tests maintaining 100% coverage.
 
 ## Architecture decisions
 
 - **`SharedGameModel`** (`ui-fx`) is the shared mutable bridge between both UIs. Both `FxUI` (JavaFX) and `LanternaUI` (Lanterna TUI) observe it via callbacks.
 - **`Keymap`** (`ui-fx`) is the single source of truth for all keyboard shortcuts and button labels. Both UIs derive their shortcut maps and button text from `Keymap` — never hardcode key chars or labels elsewhere.
 - **`GameState.history`** (list of `Situation`, most-recent-first) is the authoritative move history used for undo/redo. `SharedGameModel.moveHistory` (list of notation strings) is a parallel display list that must be kept in sync — see `reconstructMoveHistory` for the PGN-import case.
+- **`Bot` trait** (`bots`) is the single interface all AI opponents implement (`name: String`, `chooseMove(state): Option[Move]`). `BotRegistry.all` is the authoritative list of available bots — both UIs build their "New Game" menus from it. Never hardcode bot names or depths in UI code.
+- **`Situation.advance(move)`** (`rules`) is the canonical way to apply a move to a situation without game-history tracking. Used by both `GameController` and the AI search to avoid duplicating castling/en-passant/half-clock logic.
 
 ## Code style
 

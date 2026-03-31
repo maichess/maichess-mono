@@ -1,6 +1,7 @@
 package org.maichess.mono.tests
 
 import munit.FunSuite
+import org.maichess.mono.bots.{Ai, Bot, BotRegistry, MinimaxBot}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.*
 import org.maichess.mono.engine.*
@@ -37,7 +38,6 @@ class AiSuite extends FunSuite:
     assertEquals(score, 0)
 
   test("materialEval favors side with more material"):
-    // Remove white's queen; black should now score higher (score < 0 for white perspective)
     val sit = Situation.standard
     val boardNoWhiteQueen = sit.board.pieces
       .filter { case (_, p) => !(p.color == Color.White && p.pieceType == PieceType.Queen) }
@@ -49,7 +49,6 @@ class AiSuite extends FunSuite:
   // ── bestMove: no moves (game over) ────────────────────────────────────────
 
   test("bestMove returns None when no legal moves (stalemate)"):
-    // Minimal stalemate: black king on a8, white queen on b6, white king on c6
     val pieces = Map(
       sq("a8") -> Piece(Color.Black, PieceType.King),
       sq("b6") -> Piece(Color.White, PieceType.Queen),
@@ -57,57 +56,54 @@ class AiSuite extends FunSuite:
     )
     val sit   = Situation(Board(pieces), Color.Black, CastlingRights.none, None, 0, 1)
     val state = GameState(Nil, sit)
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(2)
-    assertEquals(provider(state), None)
+    val result = Ai.bestMove(StandardRules)(Ai.standardEval)(2)(state)
+    assertEquals(result, None)
 
   // ── bestMove: finds a move in a real position ──────────────────────────────
 
   test("bestMove returns Some move from starting position (depth 1, White)"):
-    val state    = ctrl.newGame()
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state).isDefined)
+    val state  = ctrl.newGame()
+    val result = Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state)
+    assert(result.isDefined)
 
   test("bestMove returns Some move from starting position (depth 1, Black)"):
     val state0 = ctrl.newGame()
     val state1 = ctrl.applyMove(state0, mv("e2", "e4")).getOrElse(throw AssertionError(""))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state1).isDefined)
+    val result = Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state1)
+    assert(result.isDefined)
 
   // ── bestMove: prefers capture (depth 1) ───────────────────────────────────
 
   test("bestMove at depth 1 captures a free queen"):
-    // White queen on e5 is undefended; black queen on a5 can take it on the same rank.
     val pieces = Map(
       sq("e8") -> Piece(Color.Black, PieceType.King),
       sq("e1") -> Piece(Color.White, PieceType.King),
       sq("e5") -> Piece(Color.White, PieceType.Queen),
       sq("a5") -> Piece(Color.Black, PieceType.Queen)
     )
-    val sit      = Situation(Board(pieces), Color.Black, CastlingRights.none, None, 0, 1)
-    val state    = GameState(Nil, sit)
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    val chosen   = provider(state).getOrElse(throw AssertionError("No move returned"))
+    val sit    = Situation(Board(pieces), Color.Black, CastlingRights.none, None, 0, 1)
+    val state  = GameState(Nil, sit)
+    val chosen = Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state)
+      .getOrElse(throw AssertionError("No move returned"))
     assertEquals(chosen.to, sq("e5"))
 
   // ── alpha-beta pruning paths ───────────────────────────────────────────────
 
   test("bestMove at depth 2 returns a valid legal move"):
-    val state    = ctrl.newGame()
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(2)
-    val chosen   = provider(state).getOrElse(throw AssertionError("No move"))
-    val legal    = StandardRules.allLegalMoves(state.current)
+    val state  = ctrl.newGame()
+    val chosen = Ai.bestMove(StandardRules)(Ai.standardEval)(2)(state)
+      .getOrElse(throw AssertionError("No move"))
+    val legal  = StandardRules.allLegalMoves(state.current)
     assert(legal.contains(chosen), s"$chosen is not a legal move")
 
   // ── enPassant path ─────────────────────────────────────────────────────────
 
   test("bestMove handles en passant position without error"):
-    // Set up en passant: white pawn on e5, black just played d7-d5
     val state0 = applyMoves(ctrl.newGame(), List(
       mv("e2", "e4"), mv("a7", "a5"),
       mv("e4", "e5"), mv("d7", "d5")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
 
   // ── castling rights updates ────────────────────────────────────────────────
 
@@ -118,9 +114,8 @@ class AiSuite extends FunSuite:
       mv("f1", "c4"), mv("f8", "c5")
     ))
     val castleMove = CastlingMove(sq("e1"), sq("g1"), sq("h1"), sq("f1"))
-    val state1 = ctrl.applyMove(state0, castleMove).getOrElse(throw AssertionError(""))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state1).isDefined)
+    val state1     = ctrl.applyMove(state0, castleMove).getOrElse(throw AssertionError(""))
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state1).isDefined)
 
   // ── rook moves update castling rights ─────────────────────────────────────
 
@@ -129,16 +124,14 @@ class AiSuite extends FunSuite:
       mv("a2", "a4"), mv("a7", "a5"),
       mv("a1", "a3"), mv("h7", "h6")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
 
   test("bestMove after white h1-rook move — no error"):
     val state0 = applyMoves(ctrl.newGame(), List(
       mv("h2", "h4"), mv("h7", "h5"),
       mv("h1", "h3"), mv("a7", "a6")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
 
   test("bestMove after black a8-rook move — no error"):
     val state0 = applyMoves(ctrl.newGame(), List(
@@ -146,8 +139,7 @@ class AiSuite extends FunSuite:
       mv("b2", "b4"), mv("a8", "a6"),
       mv("c2", "c4"), mv("h7", "h5")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
 
   test("bestMove after black h8-rook move — no error"):
     val state0 = applyMoves(ctrl.newGame(), List(
@@ -155,17 +147,51 @@ class AiSuite extends FunSuite:
       mv("a2", "a4"), mv("h8", "h6"),
       mv("b2", "b4"), mv("a7", "a5")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
 
-  // ── halfMoveClock resets on pawn move and capture ─────────────────────────
+  // ── halfMoveClock ─────────────────────────────────────────────────────────
 
   test("bestMove after long non-capture sequence — halfMoveClock increments, no error"):
-    // Force several knight shuffles to increment the half-move clock
     val state0 = applyMoves(ctrl.newGame(), List(
       mv("g1", "f3"), mv("g8", "f6"),
       mv("f3", "g1"), mv("f6", "g8"),
       mv("g1", "f3"), mv("g8", "f6")
     ))
-    val provider = Ai.bestMove(StandardRules)(Ai.standardEval)(1)
-    assert(provider(state0).isDefined)
+    assert(Ai.bestMove(StandardRules)(Ai.standardEval)(1)(state0).isDefined)
+
+  // ── Bot trait ─────────────────────────────────────────────────────────────
+
+  test("MinimaxBot implements Bot trait"):
+    val bot: Bot = new MinimaxBot("Test", 1)
+    assertEquals(bot.name, "Test")
+
+  test("MinimaxBot.chooseMove returns a legal move from start"):
+    val bot    = new MinimaxBot("Test", 1)
+    val state  = ctrl.newGame()
+    val chosen = bot.chooseMove(state).getOrElse(throw AssertionError("No move"))
+    assert(StandardRules.allLegalMoves(state.current).contains(chosen))
+
+  test("MinimaxBot.chooseMove returns None when no legal moves"):
+    val pieces = Map(
+      sq("a8") -> Piece(Color.Black, PieceType.King),
+      sq("b6") -> Piece(Color.White, PieceType.Queen),
+      sq("c6") -> Piece(Color.White, PieceType.King)
+    )
+    val sit   = Situation(Board(pieces), Color.Black, CastlingRights.none, None, 0, 1)
+    val state = GameState(Nil, sit)
+    assertEquals(new MinimaxBot("Test", 1).chooseMove(state), None)
+
+  // ── BotRegistry ───────────────────────────────────────────────────────────
+
+  test("BotRegistry.all is non-empty"):
+    assert(BotRegistry.all.nonEmpty)
+
+  test("BotRegistry.all bots have distinct names"):
+    val names = BotRegistry.all.map(_.name)
+    assertEquals(names.distinct.length, names.length)
+
+  test("BotRegistry.all bots can each choose a move from start"):
+    val state = ctrl.newGame()
+    BotRegistry.all.foreach { bot =>
+      assert(bot.chooseMove(state).isDefined, s"${bot.name} returned no move")
+    }

@@ -8,6 +8,7 @@ import javafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyEvent}
 import javafx.scene.layout.{BorderPane, HBox, VBox}
 import javafx.stage.{Modality, Stage, WindowEvent}
 import java.util.concurrent.atomic.AtomicReference
+import org.maichess.mono.bots.BotRegistry
 import org.maichess.mono.engine.{DrawReason, GameResult, GameState}
 import org.maichess.mono.model.*
 
@@ -97,14 +98,16 @@ object FxUI:
     def doNewGame(): Unit =
       val alert = new Alert(Alert.AlertType.CONFIRMATION)
       alert.setTitle("New Game")
-      alert.setHeaderText("Choose game mode")
+      alert.setHeaderText("Choose opponent")
       alert.initOwner(stage)
-      val hvh = new ButtonType("Human vs Human")
-      val hva = new ButtonType("Human vs AI")
-      alert.getButtonTypes.setAll(hvh, hva)
+      val humanBtn = new ButtonType("Human vs Human")
+      val botBtns  = BotRegistry.all.map(b => new ButtonType(s"vs ${b.name}"))
+      alert.getButtonTypes.setAll((humanBtn :: botBtns)*)
       alert.showAndWait().ifPresent { choice =>
-        val mode = if choice == hva then PlayerMode.HumanVsAi else PlayerMode.HumanVsHuman
-        model.newGameWithMode(mode)
+        val selectedBot = BotRegistry.all.zip(botBtns).collectFirst {
+          case (bot, btn) if btn == choice => bot
+        }
+        model.newGameWithBot(selectedBot)
       }
 
     val actions: List[(KeyBinding, () => Unit)] = List(

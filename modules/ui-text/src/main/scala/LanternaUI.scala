@@ -73,8 +73,8 @@ object LanternaUI:
       boardComponent.setBoardEnabled(false)
 
     def doNewGame(): Unit =
-      val mode = ChessDialog.showModeSelect(gui)
-      model.newGameWithMode(mode)
+      val bot = ChessDialog.showBotSelect(gui)
+      model.newGameWithBot(bot)
 
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
       Keymap.newGame.key   -> (() => doNewGame()),

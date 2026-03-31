@@ -17,7 +17,7 @@ val jfxClassifier: String = {
   val arch = sys.props.getOrElse("os.arch", "").toLowerCase
   if      (os.contains("mac") && arch.contains("aarch64")) "mac-aarch64"
   else if (os.contains("mac"))                              "mac"
-  else if (os.contains("win"))                              "win"
+  else if (os.contains("win"))                             "win"
   else                                                      "linux"
 }
 
@@ -38,8 +38,14 @@ lazy val engine = (project in file("modules/engine"))
   .settings(coverageSettings: _*)
   .settings(name := "maichess-engine")
 
-lazy val uiFx = (project in file("modules/ui-fx"))
+lazy val bots = (project in file("modules/bots"))
   .dependsOn(engine)
+  .settings(moduleSettings("org.maichess.mono.bots"): _*)
+  .settings(coverageSettings: _*)
+  .settings(name := "maichess-bots")
+
+lazy val uiFx = (project in file("modules/ui-fx"))
+  .dependsOn(bots)
   .settings(moduleSettings("org.maichess.mono.uifx"): _*)
   .settings(coverageEnabled   := false)
   .settings(wartremoverErrors  := Nil, wartremoverWarnings := Nil)
@@ -52,7 +58,7 @@ lazy val uiFx = (project in file("modules/ui-fx"))
   )
 
 lazy val uiText = (project in file("modules/ui-text"))
-  .dependsOn(engine, uiFx)
+  .dependsOn(bots, uiFx)
   .settings(moduleSettings("org.maichess.mono.ui"): _*)
   .settings(coverageEnabled := false)
   .settings(name := "maichess-ui-text")
@@ -68,15 +74,15 @@ lazy val uiText = (project in file("modules/ui-text"))
     assembly / mainClass       := Some("org.maichess.mono.ui.runGame"),
     assembly / assemblyJarName := "maichess.jar",
     assembly / assemblyMergeStrategy := {
-      case PathList("module-info.class")                    => MergeStrategy.discard
-      case PathList("META-INF", "versions", _ @ _*)         => MergeStrategy.first
+      case PathList("module-info.class")                       => MergeStrategy.discard
+      case PathList("META-INF", "versions", _ @ _*)            => MergeStrategy.first
       case PathList("META-INF", "substrate", "config", _ @_*) => MergeStrategy.first
       case x => (assembly / assemblyMergeStrategy).value(x)
     }
   )
 
 lazy val tests = (project in file("modules/tests"))
-  .dependsOn(model, rules, engine, uiText)
+  .dependsOn(model, rules, engine, bots, uiText)
   .settings(moduleSettings("org.maichess.mono.tests"): _*)
   .settings(
     name := "maichess-tests",
@@ -84,6 +90,7 @@ lazy val tests = (project in file("modules/tests"))
       "org.scalameta" %% "munit" % "1.0.4" % Test
     ),
     testFrameworks += new TestFramework("munit.Framework"),
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     Test / wartremoverErrors   := Nil,
     Test / wartremoverWarnings := Nil,
     Test / scalacOptions ~= { opts =>
@@ -92,7 +99,7 @@ lazy val tests = (project in file("modules/tests"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(model, rules, engine, uiFx, uiText, tests)
+  .aggregate(model, rules, engine, bots, uiFx, uiText, tests)
   .settings(
     name := "maichess-mono",
     Compile / unmanagedSourceDirectories := Nil,
