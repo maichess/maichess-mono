@@ -68,8 +68,9 @@ lazy val uiText = (project in file("modules/ui-text"))
     assembly / mainClass       := Some("org.maichess.mono.ui.runGame"),
     assembly / assemblyJarName := "maichess.jar",
     assembly / assemblyMergeStrategy := {
-      case PathList("module-info.class")             => MergeStrategy.discard
-      case PathList("META-INF", "versions", _ @ _*) => MergeStrategy.first
+      case PathList("module-info.class")                    => MergeStrategy.discard
+      case PathList("META-INF", "versions", _ @ _*)         => MergeStrategy.first
+      case PathList("META-INF", "substrate", "config", _ @_*) => MergeStrategy.first
       case x => (assembly / assemblyMergeStrategy).value(x)
     }
   )
