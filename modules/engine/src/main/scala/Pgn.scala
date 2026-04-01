@@ -24,15 +24,18 @@ object Pgn:
   /** Imports a PGN string; returns the resulting GameState or an error. */
   def decode(pgn: String, ruleSet: RuleSet): Either[String, GameState] =
     val tokens  = tokenize(stripHeaders(pgn))
-    val initial = GameState(Nil, Situation.standard)
     val ctrl    = new GameController(ruleSet)
-    tokens.foldLeft(Right(initial): Either[String, GameState]) {
-      case (Right(s), token) =>
-        San.decode(s.current, token, ruleSet) match
-          case Right(move) => Right(ctrl.advance(s, move))
+    val initial = GameState(Nil, Situation.standard)
+    parseTokens(tokens, ruleSet).map(ctrl.replay(_).finalState(initial))
+
+  private def parseTokens(tokens: List[String], ruleSet: RuleSet): Either[String, List[Move]] =
+    tokens.foldLeft(Right((Situation.standard, List.empty[Move])): Either[String, (Situation, List[Move])]) {
+      case (Right((sit, moves)), token) =>
+        San.decode(sit, token, ruleSet) match
+          case Right(move) => Right((sit.advance(move), moves :+ move))
           case Left(err)   => Left("Cannot parse SAN '" + token + "': " + err)
       case (left, _) => left
-    }
+    }.map(_._2)
 
   private def resultTag(state: GameState, ctrl: GameController): String =
     ctrl.gameResult(state) match

@@ -11,7 +11,8 @@
       "Bash(sbt \"engine/coverageReport\")",
       "Bash(sbt \"bots/dependencyClasspath\")",
       "Bash(sbt \"show bots/dependencyClasspath\")",
-      "Bash(sbt \"bots/compile\")"
+      "Bash(sbt \"bots/compile\")",
+      "Bash(sbt clean:*)"
     ]
   }
 }

@@ -417,19 +417,15 @@ class PgnSuite extends FunSuite:
     // Scholar's Mate
     val moves = List(move("e2","e4"), move("e7","e5"), move("d1","h5"),
                      move("b8","c6"), move("f1","c4"), move("g8","f6"), move("h5","f7"))
-    val state = moves.foldLeft(ctrl.newGame()) { (s, m) =>
-      ctrl.applyMove(s, m).getOrElse(fail(s"illegal move $m"))
-    }
-    val pgn = Pgn.encode(state, StandardRules)
+    val state = ctrl.replay(moves).finalState(ctrl.newGame())
+    val pgn   = Pgn.encode(state, StandardRules)
     assert(pgn.contains("[Result \"1-0\"]"))
 
   test("PGN encode: black checkmate has result 0-1"):
     // Fool's Mate: 1. f3 e5 2. g4 Qh4#
     val moves = List(move("f2","f3"), move("e7","e5"), move("g2","g4"), move("d8","h4"))
-    val state = moves.foldLeft(ctrl.newGame()) { (s, m) =>
-      ctrl.applyMove(s, m).getOrElse(fail(s"illegal move $m"))
-    }
-    val pgn = Pgn.encode(state, StandardRules)
+    val state = ctrl.replay(moves).finalState(ctrl.newGame())
+    val pgn   = Pgn.encode(state, StandardRules)
     assert(pgn.contains("[Result \"0-1\"]"))
 
   test("PGN encode: draw has result 1/2-1/2"):

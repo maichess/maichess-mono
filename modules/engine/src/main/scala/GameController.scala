@@ -36,6 +36,19 @@ class GameController(ruleSet: RuleSet):
     else if threefoldRepetition(state)          then Some(GameResult.Draw(DrawReason.ThreefoldRepetition))
     else None
 
+  /** Advances the game by `move` and detects game-over; subsequent [[Ply]] steps are skipped if the game ends. */
+  def step(move: Move): Ply[Unit] =
+    Ply.get.flatMap { state =>
+      val next = advance(state, move)
+      gameResult(next) match
+        case None         => Ply.set(next)
+        case Some(result) => Ply.set(next).flatMap(_ => Ply.end(result))
+    }
+
+  /** Replays `moves` in sequence, terminating automatically when the game ends. */
+  def replay(moves: List[Move]): Ply[Unit] =
+    moves.foldLeft(Ply.pure(()))((acc, m) => acc.flatMap(_ => step(m)))
+
   private[engine] def advance(state: GameState, move: Move): GameState =
     GameState(state.current :: state.history, state.current.advance(move), Nil)
 

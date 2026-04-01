@@ -15,9 +15,7 @@ class AiSuite extends FunSuite:
   def mv(from: String, to: String): NormalMove = NormalMove(sq(from), sq(to))
 
   def applyMoves(state: GameState, moves: List[Move]): GameState =
-    moves.foldLeft(state) { (s, m) =>
-      ctrl.applyMove(s, m).getOrElse(throw new AssertionError(s"Illegal move: $m"))
-    }
+    ctrl.replay(moves).finalState(state)
 
   // ── standardValues & materialEval ─────────────────────────────────────────
 

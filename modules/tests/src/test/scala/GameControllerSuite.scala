@@ -24,15 +24,11 @@ class GameControllerSuite extends FunSuite:
       move("g8", "f6"),
       move("h5", "f7")  // Qxf7#
     )
-    val finalState = moves.foldLeft(Right(ctrl.newGame()): Either[IllegalMove, GameState]) {
-      case (Right(state), m) => ctrl.applyMove(state, m)
-      case (left, _)         => left
-    }
-    finalState match
-      case Right(state) =>
-        assertEquals(ctrl.gameResult(state), Some(GameResult.Checkmate(Color.White)))
-      case Left(err) =>
-        fail(s"Unexpected illegal move: $err")
+    ctrl.replay(moves).run(ctrl.newGame()) match
+      case Ply.Step.Terminal(result, _) =>
+        assertEquals(result, GameResult.Checkmate(Color.White))
+      case Ply.Step.Active(_, _) =>
+        fail("Expected checkmate after Scholar's Mate")
 
   test("Applying an illegal move returns Left and does not change state"):
     val state = ctrl.newGame()
