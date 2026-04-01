@@ -42,6 +42,15 @@ lazy val bots = (project in file("modules/bots"))
   .dependsOn(engine)
   .settings(moduleSettings("org.maichess.mono.bots"): _*)
   .settings(coverageSettings: _*)
+  .settings(
+    coverageExcludedPackages := "org\\.maichess\\.mono\\.bots\\.engine\\..*",
+    wartremoverExcluded ++= {
+      val engineDir = (Compile / scalaSource).value / "engine"
+      if (engineDir.isDirectory)
+        Option(engineDir.listFiles(_.getName.endsWith(".scala"))).toSeq.flatten
+      else Seq.empty
+    }
+  )
   .settings(name := "maichess-bots")
 
 lazy val uiFx = (project in file("modules/ui-fx"))

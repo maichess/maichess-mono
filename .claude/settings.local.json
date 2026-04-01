@@ -10,7 +10,8 @@
       "Bash(sbt \"testOnly *AiSuite\")",
       "Bash(sbt \"engine/coverageReport\")",
       "Bash(sbt \"bots/dependencyClasspath\")",
-      "Bash(sbt \"show bots/dependencyClasspath\")"
+      "Bash(sbt \"show bots/dependencyClasspath\")",
+      "Bash(sbt \"bots/compile\")"
     ]
   }
 }
