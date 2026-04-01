@@ -17,6 +17,7 @@ package org.maichess.mono.bots.engine
 //   (the saved hash is restored directly).
 //
 // The undo stack depth of 1024 comfortably covers any reachable game tree.
+@SuppressWarnings(Array("org.wartremover.warts.Var"))
 final class Position:
   import Pieces.*
   import BB.*
@@ -254,3 +255,40 @@ final class Position:
       hash ^= Zobrist.forEpFile(Sq.file(Square(epSquare)))
     if sideToMove == Col.Black then
       hash ^= Zobrist.sideToMove
+
+// ── Position companion: FEN parser ───────────────────────────────────────────
+@SuppressWarnings(Array("org.wartremover.warts.Var"))
+object Position:
+  def fromFen(fen: String): Position =
+    val pos   = new Position()
+    val parts = fen.split(' ')
+    val ranks = parts(0).split('/')
+    for (rankStr, rankFromTop) <- ranks.zipWithIndex do
+      val r = 7 - rankFromTop; var f = 0
+      for c <- rankStr do
+        if c.isDigit then f += c.asDigit
+        else
+          val (color, ptype) = charToPiece(c)
+          pos.putPiece(Pieces.make(color, ptype), Square((r << 3) | f))
+          f += 1
+    pos.sideToMove = if parts(1) == "w" then Col.White else Col.Black
+    val cr = parts(2)
+    pos.castlingRights =
+      (if cr.contains('K') then Castling.WK else 0) |
+      (if cr.contains('Q') then Castling.WQ else 0) |
+      (if cr.contains('k') then Castling.BK else 0) |
+      (if cr.contains('q') then Castling.BQ else 0)
+    pos.epSquare       = if parts(3) == "-" then Sq.None.toInt else algToSq(parts(3))
+    pos.halfMoveClock  = parts(4).toInt
+    pos.fullMoveNumber = parts(5).toInt
+    pos.recomputeHash()
+    pos
+
+  private def charToPiece(c: Char): (Int, Int) =
+    val color = if c.isUpper then Col.White else Col.Black
+    val ptype = c.toLower match
+      case 'p' => PType.Pawn;   case 'n' => PType.Knight; case 'b' => PType.Bishop
+      case 'r' => PType.Rook;   case 'q' => PType.Queen;  case _   => PType.King
+    (color, ptype)
+
+  private def algToSq(s: String): Int = ((s(1) - '1') << 3) | (s(0) - 'a')

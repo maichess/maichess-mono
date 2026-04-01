@@ -6,6 +6,7 @@ package org.maichess.mono.bots.engine
 //
 // Slider attacks (bishop, rook, queen) are NOT included here; those require
 // Magic Bitboards and will be added in the move-generation step.
+@SuppressWarnings(Array("org.wartremover.warts.Var"))
 object Attacks:
 
   // Pawn attacks: indexed by [color][square]

@@ -11,6 +11,7 @@ package org.maichess.mono.bots.engine
 // JVM intrinsics:
 //   numberOfTrailingZeros → BSF / TZCNT  (single cycle on x86-64)
 //   bitCount              → POPCNT       (single cycle on x86-64)
+@SuppressWarnings(Array("org.wartremover.warts.Var"))
 object BB:
 
   // ── File masks ────────────────────────────────────────────────────────────

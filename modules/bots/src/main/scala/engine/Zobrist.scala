@@ -8,6 +8,7 @@ package org.maichess.mono.bots.engine
 // PRNG: xorshift64 seeded with the fractional bits of the golden ratio.
 // This is the same family used by Stockfish and is known to have good
 // avalanche properties for Zobrist tables.
+@SuppressWarnings(Array("org.wartremover.warts.Var"))
 object Zobrist:
 
   // 16 piece indices × 64 squares.
