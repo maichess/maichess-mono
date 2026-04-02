@@ -91,6 +91,7 @@ object Search:
     best
 
   private def quiesce(pos: Position, aIn: Int, beta: Int, ply: Int): Int =
+    if timeUp() then return 0
     val stand = Eval.evaluate(pos)
     if stand >= beta then return stand
     if ply >= 127    then return stand

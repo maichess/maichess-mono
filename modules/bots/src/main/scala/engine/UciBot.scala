@@ -9,12 +9,12 @@ import org.maichess.mono.rules.Situation
 // Bridges GameState → Position via FEN, delegates to Search.bestMove,
 // then maps the engine move back to the rules-layer Move hierarchy.
 @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-class UciBot extends Bot:
-  val name: String = "UCI Engine"
+class UciBot(timeLimitMs: Long) extends Bot:
+  val name: String = "UCI " + (timeLimitMs / 1000).toString + "s"
 
   def chooseMove(state: GameState): Option[model.Move] =
     val pos = Position.fromFen(Fen.encode(state.current))
-    val em  = Search.bestMove(pos, timeLimitMs = 1000L)
+    val em  = Search.bestMove(pos, timeLimitMs = timeLimitMs)
     if em == Move.None then None else Some(toRulesMove(em, state.current))
 
   private def toRulesMove(em: Int, sit: Situation): model.Move =

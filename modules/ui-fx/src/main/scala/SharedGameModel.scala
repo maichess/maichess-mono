@@ -13,7 +13,8 @@ class SharedGameModel(ctrl: GameController):
     SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset)
   private var observers:         List[SharedGameModel.State => Unit] = Nil
   private var shutdownObservers: List[() => Unit]                   = Nil
-  private var activeBot: Option[Bot]                                 = None
+  private var whiteBot: Option[Bot]                                  = None
+  private var blackBot: Option[Bot]                                  = None
 
   def state: SharedGameModel.State = synchronized { current }
 
@@ -33,12 +34,8 @@ class SharedGameModel(ctrl: GameController):
       observers
     obs.foreach(_(s))
 
-  def newGame(): Unit =
-    synchronized { activeBot = None }
-    commit(SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset))
-
-  def newGameWithBot(bot: Option[Bot]): Unit =
-    synchronized { activeBot = bot }
+  def newGame(white: Option[Bot] = None, black: Option[Bot] = None): Unit =
+    synchronized { whiteBot = white; blackBot = black }
     commit(SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset))
     scheduleAiMoveIfNeeded()
 
@@ -61,9 +58,10 @@ class SharedGameModel(ctrl: GameController):
     moveResult
 
   private def scheduleAiMoveIfNeeded(): Unit =
-    val (bot, st) = synchronized { (activeBot, current) }
-    bot.foreach { b =>
-      if ctrl.gameResult(st.game).isEmpty && st.game.current.turn == Color.Black then
+    val (wb, bb, st) = synchronized { (whiteBot, blackBot, current) }
+    val botOpt = if st.game.current.turn == Color.White then wb else bb
+    botOpt.foreach { b =>
+      if ctrl.gameResult(st.game).isEmpty then
         val thread = new Thread(() => {
           b.chooseMove(st.game).foreach { move =>
             applyMove(move, moveNotation(move))
@@ -139,7 +137,8 @@ class SharedGameModel(ctrl: GameController):
     case PieceType.King   => "K"
     case PieceType.Pawn   => "P"
 
-  def hasBot: Boolean                  = synchronized { activeBot.isDefined }
+  def botFor(color: Color): Option[Bot] = synchronized { if color == Color.White then whiteBot else blackBot }
+  def hasBot: Boolean                  = synchronized { whiteBot.isDefined || blackBot.isDefined }
   def exportFen(): String              = Fen.encode(state.game.current)
   def exportPgn(): String              = Pgn.encode(state.game, StandardRules)
   def gameResult(): Option[GameResult] = ctrl.gameResult(state.game)

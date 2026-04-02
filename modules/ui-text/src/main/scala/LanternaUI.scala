@@ -26,7 +26,11 @@ object LanternaUI:
 
     def syncUiFrom(s: SharedGameModel.State): Unit =
       val (cw, cb)   = recomputeCaptures(s.game)
-      val shouldFlip = !model.hasBot && s.game.current.turn == Color.Black
+      val turn       = s.game.current.turn
+      val wBot       = model.botFor(Color.White)
+      val bBot       = model.botFor(Color.Black)
+      val shouldFlip = (wBot.isDefined && bBot.isEmpty) ||
+                       (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
       boardComponent.setFlipped(shouldFlip)
       s.change match
         case Change.Reset =>
@@ -35,7 +39,7 @@ object LanternaUI:
           boardComponent.updateState(s.game)
       sidePanel.update(s.game, s.moveHistory, cw, cb)
       val isOver     = model.gameResult().isDefined
-      val isThinking = model.hasBot && !isOver && s.game.current.turn == Color.Black
+      val isThinking = !isOver && model.botFor(turn).isDefined
       boardComponent.setBoardEnabled(!isOver && !isThinking)
       if isThinking then sidePanel.showThinking()
       else               sidePanel.hideThinking()
@@ -78,8 +82,9 @@ object LanternaUI:
       boardComponent.setBoardEnabled(false)
 
     def doNewGame(): Unit =
-      val bot = ChessDialog.showBotSelect(gui)
-      model.newGameWithBot(bot)
+      ChessDialog.showGameSetup(gui).foreach { (white, black) =>
+        model.newGame(white, black)
+      }
 
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
       Keymap.newGame.key   -> (() => doNewGame()),

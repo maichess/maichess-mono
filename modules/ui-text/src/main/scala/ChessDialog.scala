@@ -64,24 +64,32 @@ object ChessDialog:
     gui.addWindowAndWait(window)
     result.get()
 
-  /** Shows a bot-selection dialog; returns None for Human vs Human or Some(bot) for a bot opponent. */
-  def showBotSelect(gui: WindowBasedTextGUI): Option[Bot] =
-    val result = new AtomicReference[Option[Bot]](None)
+  /** Shows two successive player-selection dialogs (White then Black).
+   *  Returns None if either dialog is cancelled, otherwise the chosen bots for each color
+   *  (None in the pair means a human player). */
+  def showGameSetup(gui: WindowBasedTextGUI): Option[(Option[Bot], Option[Bot])] =
+    pickPlayer(gui, "Choose White player").flatMap { white =>
+      pickPlayer(gui, "Choose Black player").map { black => (white, black) }
+    }
+
+  private def pickPlayer(gui: WindowBasedTextGUI, title: String): Option[Option[Bot]] =
+    val result = new AtomicReference[Option[Option[Bot]]](None)
     val panel  = new Panel(new LinearLayout(Direction.VERTICAL))
-    val _ = panel.addComponent(new Label("Choose opponent:"))
+    val _ = panel.addComponent(new Label(title + ":"))
 
     val window = new BasicWindow("New Game")
     window.setHints(java.util.Arrays.asList(Window.Hint.CENTERED))
 
     val buttonPanel = new Panel(new LinearLayout(Direction.HORIZONTAL))
-    val _ = buttonPanel.addComponent(new Button("Human vs Human", new Runnable:
-      def run(): Unit = window.close()
+    val _ = buttonPanel.addComponent(new Button("Human", new Runnable:
+      def run(): Unit =
+        result.set(Some(None))
+        window.close()
     ))
     def addBotButton(bot: Bot): Unit =
-      val label = "vs " + bot.name
-      val _ = buttonPanel.addComponent(new Button(label, new Runnable:
+      val _ = buttonPanel.addComponent(new Button(bot.name, new Runnable:
         def run(): Unit =
-          result.set(Some(bot))
+          result.set(Some(Some(bot)))
           window.close()
       ))
     BotRegistry.all.foreach(addBotButton)

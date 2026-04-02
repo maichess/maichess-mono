@@ -10,7 +10,7 @@ import javafx.scene.layout.{BorderPane, HBox, StackPane, VBox}
 import javafx.stage.{Modality, Stage, WindowEvent}
 import javafx.util.Duration
 import java.util.concurrent.atomic.AtomicReference
-import org.maichess.mono.bots.BotRegistry
+import org.maichess.mono.bots.{Bot, BotRegistry}
 import org.maichess.mono.engine.{DrawReason, GameResult, GameState}
 import org.maichess.mono.model.*
 
@@ -46,12 +46,17 @@ object FxUI:
     thinkingAnim.setCycleCount(Animation.INDEFINITE)
 
     def refresh(s: SharedGameModel.State): Unit =
-      board.setFlipped(!model.hasBot && s.game.current.turn == Color.Black)
+      val turn        = s.game.current.turn
+      val wBot        = model.botFor(Color.White)
+      val bBot        = model.botFor(Color.Black)
+      val shouldFlip  = (wBot.isDefined && bBot.isEmpty) ||
+                        (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
+      board.setFlipped(shouldFlip)
       board.updateState(s.game)
       val (cw, cb) = recomputeCaptures(s.game)
       side.update(s.game, s.moveHistory, cw, cb)
       val isOver      = model.gameResult().isDefined
-      val isThinking  = model.hasBot && !isOver && s.game.current.turn == Color.Black
+      val isThinking  = !isOver && model.botFor(turn).isDefined
       model.gameResult().foreach(r => side.showResult(resultMessage(r)))
       board.setBoardEnabled(!isOver && !isThinking)
       if isThinking then
@@ -120,20 +125,27 @@ object FxUI:
 
     def doExportPgn(): Unit = showExportDialog("Export PGN", model.exportPgn(), stage)
 
-    def doNewGame(): Unit =
+    def choosePlayer(header: String): Option[Option[Bot]] =
       val alert = new Alert(Alert.AlertType.CONFIRMATION)
       alert.setTitle("New Game")
-      alert.setHeaderText("Choose opponent")
+      alert.setHeaderText(header)
       alert.initOwner(stage)
-      val humanBtn = new ButtonType("Human vs Human")
-      val botBtns  = BotRegistry.all.map(b => new ButtonType(s"vs ${b.name}"))
+      val humanBtn = new ButtonType("Human")
+      val botBtns  = BotRegistry.all.map(b => new ButtonType(b.name))
       alert.getButtonTypes.setAll((humanBtn :: botBtns)*)
-      alert.showAndWait().ifPresent { choice =>
-        val selectedBot = BotRegistry.all.zip(botBtns).collectFirst {
-          case (bot, btn) if btn == choice => bot
+      val chosen = alert.showAndWait()
+      if !chosen.isPresent then None
+      else
+        val bot = BotRegistry.all.zip(botBtns).collectFirst {
+          case (b, btn) if btn == chosen.get => b
         }
-        model.newGameWithBot(selectedBot)
-      }
+        Some(bot)
+
+    def doNewGame(): Unit =
+      for
+        white <- choosePlayer("Choose White player")
+        black <- choosePlayer("Choose Black player")
+      do model.newGame(white, black)
 
     val actions: List[(KeyBinding, () => Unit)] = List(
       (Keymap.newGame,   () => doNewGame()),
