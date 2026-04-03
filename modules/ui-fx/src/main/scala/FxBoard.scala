@@ -8,15 +8,16 @@ import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
 
-class FxBoard(initialState: GameState, squareSize: Double = 72.0):
+class FxBoard(initialState: GameState, initialTheme: BoardTheme, squareSize: Double = 72.0):
   val canvas = new Canvas(squareSize * 8, squareSize * 8)
   private val gc = canvas.getGraphicsContext2D
 
-  private var gameState  = initialState
-  private var selected   = Option.empty[Square]
-  private var legalMoves = List.empty[Move]
-  private var enabled    = true
-  private var flipped    = false
+  private var gameState   = initialState
+  private var selected    = Option.empty[Square]
+  private var legalMoves  = List.empty[Move]
+  private var enabled     = true
+  private var flipped     = false
+  private var boardTheme  = initialTheme
   var onMove: Move => Unit = _ => ()
 
   canvas.setOnMouseClicked((e: MouseEvent) => if enabled then handleClick(e))
@@ -33,6 +34,10 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
 
   def setFlipped(flag: Boolean): Unit =
     flipped = flag
+    draw()
+
+  def updateTheme(theme: BoardTheme): Unit =
+    boardTheme = theme
     draw()
 
   private def toFile(pixelX: Double): Int =
@@ -88,16 +93,13 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
     val x       = sqX(fi)
     val y       = sqY(ri)
     val isLight = (fi + ri) % 2 != 0
-
     val bg = selected match
-      case Some(s) if s == sq                    => JColor.rgb(130, 151, 105)
-      case _ if legalMoves.exists(_.to == sq)    => JColor.rgb(100, 130, 180)
-      case _ if isLight                          => JColor.rgb(240, 217, 181)
-      case _                                     => JColor.rgb(181, 136,  99)
-
+      case Some(s) if s == sq                 => boardTheme.selected
+      case _ if legalMoves.exists(_.to == sq) => boardTheme.legal
+      case _ if isLight                       => boardTheme.light
+      case _                                  => boardTheme.dark
     gc.setFill(bg)
     gc.fillRect(x, y, squareSize, squareSize)
-
     gameState.current.board.pieceAt(sq).foreach { piece =>
       val fg  = if piece.color == Color.White then JColor.WHITE else JColor.BLACK
       val out = if piece.color == Color.White then JColor.rgb(80, 80, 80) else JColor.rgb(200, 200, 200)
@@ -110,22 +112,20 @@ class FxBoard(initialState: GameState, squareSize: Double = 72.0):
       gc.fillText(pieceChar(piece).toString, x + squareSize / 2, y + squareSize * 0.80)
     }
 
-  private def isLightSquare(fi: Int, ri: Int): Boolean = (fi + ri) % 2 != 0
-
   private def drawLabels(): Unit =
     gc.setFont(Font.font("SansSerif", 10))
     gc.setTextAlign(TextAlignment.LEFT)
     for row <- 0 to 7 do
       val ri      = if flipped then row else 7 - row
       val label   = (ri + 1).toString
-      val isLight = isLightSquare(0, ri)
-      gc.setFill(if isLight then JColor.rgb(181, 136, 99) else JColor.rgb(240, 217, 181))
+      val isLight = (0 + ri) % 2 != 0
+      gc.setFill(if isLight then boardTheme.labelOnLight else boardTheme.labelOnDark)
       gc.fillText(label, 2, row * squareSize + 12)
     for col <- 0 to 7 do
       val fi      = if flipped then 7 - col else col
       val label   = ('a' + fi).toChar.toString
-      val isLight = isLightSquare(fi, 0)
-      gc.setFill(if isLight then JColor.rgb(181, 136, 99) else JColor.rgb(240, 217, 181))
+      val isLight = (fi + 0) % 2 != 0
+      gc.setFill(if isLight then boardTheme.labelOnLight else boardTheme.labelOnDark)
       gc.fillText(label, col * squareSize + squareSize - 10, canvas.getHeight - 3)
 
   private def pieceChar(piece: Piece): Char = piece.color match

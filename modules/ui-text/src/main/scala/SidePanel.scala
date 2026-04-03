@@ -4,6 +4,7 @@ import com.googlecode.lanterna.gui2.{Direction => LDirection, Label, LinearLayou
 import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
+import org.maichess.mono.uifx.{ClockState, SharedGameModel, *}
 
 object SidePanel:
 
@@ -12,37 +13,34 @@ object SidePanel:
     val opponentAfter  = after.pieces.values.filter(_.color != movingColor).toList
     opponentBefore diff opponentAfter
 
-  def moveNotation(move: Move): String = move match
-    case NormalMove(from, to, None)     => from.toAlgebraic + "-" + to.toAlgebraic
-    case NormalMove(from, to, Some(pt)) => from.toAlgebraic + "-" + to.toAlgebraic + "=" + promotionLetter(pt)
-    case CastlingMove(from, _, rookFrom, _) =>
-      if rookFrom.file.toInt > from.file.toInt then "O-O" else "O-O-O"
-    case EnPassantMove(from, to, _) => from.toAlgebraic + "-" + to.toAlgebraic
-
-  private def promotionLetter(pt: PieceType): String = pt match
-    case PieceType.Queen  => "Q"
-    case PieceType.Rook   => "R"
-    case PieceType.Bishop => "B"
-    case PieceType.Knight => "N"
-    case PieceType.King   => "K"
-    case PieceType.Pawn   => "P"
+  def moveNotation(move: Move): String = SharedGameModel.moveNotation(move)
 
   def pieceSymbol(piece: Piece): String =
     BoardComponent.pieceChar(piece).toString
 
 class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
 
+  private val blackClockLabel    = new Label("Black: \u221e")
+  private val blackNameLabel     = new Label("Black")
   private val statusLabel        = new Label("White to move")
   private val thinkingLabel      = new Label("")
   private val capturedWhiteLabel = new Label("White captured: ")
   private val capturedBlackLabel = new Label("Black captured: ")
   private val historyPanel       = new Panel(new LinearLayout(LDirection.VERTICAL))
+  private val whiteNameLabel     = new Label("White")
+  private val whiteClockLabel    = new Label("White: \u221e")
 
+  private val _ = addComponent(blackNameLabel)
+  private val _ = addComponent(blackClockLabel)
+  private val _ = addComponent(new com.googlecode.lanterna.gui2.Separator(LDirection.HORIZONTAL))
   private val _ = addComponent(statusLabel)
   private val _ = addComponent(thinkingLabel)
   private val _ = addComponent(capturedWhiteLabel)
   private val _ = addComponent(capturedBlackLabel)
   private val _ = addComponent(historyPanel)
+  private val _ = addComponent(new com.googlecode.lanterna.gui2.Separator(LDirection.HORIZONTAL))
+  private val _ = addComponent(whiteNameLabel)
+  private val _ = addComponent(whiteClockLabel)
 
   def update(
     state:         GameState,
@@ -56,6 +54,19 @@ class SidePanel extends Panel(new LinearLayout(LDirection.VERTICAL)):
     capturedWhiteLabel.setText("White captured: " + capturedWhite.map(SidePanel.pieceSymbol).mkString)
     capturedBlackLabel.setText("Black captured: " + capturedBlack.map(SidePanel.pieceSymbol).mkString)
     refreshHistory(history)
+
+  def setPlayerNames(white: String, black: String): Unit =
+    whiteNameLabel.setText(white)
+    blackNameLabel.setText(black)
+
+  def updateClock(clock: Option[ClockState]): Unit =
+    clock match
+      case None =>
+        whiteClockLabel.setText("White: \u221e")
+        blackClockLabel.setText("Black: \u221e")
+      case Some(s) =>
+        whiteClockLabel.setText("White: " + s.formatted(Color.White))
+        blackClockLabel.setText("Black: " + s.formatted(Color.Black))
 
   def showResult(message: String): Unit =
     statusLabel.setText(message)

@@ -4,9 +4,9 @@ import javafx.animation.{Animation, KeyFrame, Timeline}
 import javafx.application.Platform
 import javafx.geometry.{Insets, Pos}
 import javafx.scene.Scene
-import javafx.scene.control.{Alert, Button, ButtonType, Label, TextArea, ToolBar}
+import javafx.scene.control.*
 import javafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyEvent}
-import javafx.scene.layout.{BorderPane, HBox, StackPane, VBox}
+import javafx.scene.layout.*
 import javafx.stage.{Modality, Stage, WindowEvent}
 import javafx.util.Duration
 import java.util.concurrent.atomic.AtomicReference
@@ -18,45 +18,69 @@ object FxUI:
 
   def start(model: SharedGameModel, stage: Stage): Unit =
     val init  = model.state
-    val board = new FxBoard(init.game)
+    val board = new FxBoard(init.game, ThemeManager.board)
     val side  = new FxSidePanel()
 
-    def recomputeCaptures(state: GameState): (List[Piece], List[Piece]) =
-      val sits = state.history.reverse :+ state.current
-      sits.zip(sits.drop(1)).foldLeft((List.empty[Piece], List.empty[Piece])) {
-        case ((cw, cb), (before, after)) =>
-          val caps = capturedIn(before.board, after.board, before.turn)
-          if before.turn == Color.White then (cw ++ caps, cb) else (cw, cb ++ caps)
-      }
+    // ── Initial render ───────────────────────────────────────────────────
+    val (cw0, cb0) = recomputeCaptures(init.game)
+    side.update(init.game, init.moveHistory, cw0, cb0)
+    side.setPlayerNames(init.metadata.white, init.metadata.black)
+    side.updateClock(init.clock)
 
-    // ── Thinking indicator ────────────────────────────────────────────────────
+    // ── Thinking indicator ───────────────────────────────────────────────
     val thinkingPieces = Array("\u265e", "\u265d", "\u265c", "\u265b", "\u265a", "\u265f")
     var thinkingIdx    = 0
     val thinkingLabel  = new Label("AI thinking...  \u265e")
-    thinkingLabel.setStyle(
-      "-fx-font-size: 18px; -fx-text-fill: white;" +
-      " -fx-background-color: rgba(0,0,0,0.65); -fx-padding: 10 18 10 18;" +
-      " -fx-background-radius: 6;"
-    )
+    thinkingLabel.setId("thinking-label")
     thinkingLabel.setVisible(false)
-    val thinkingAnim = new Timeline(new KeyFrame(Duration.millis(350), _ => {
+    val thinkingAnim   = new Timeline(new KeyFrame(Duration.millis(350), _ => {
       thinkingIdx = (thinkingIdx + 1) % thinkingPieces.length
       thinkingLabel.setText("AI thinking...  " + thinkingPieces(thinkingIdx))
     }))
     thinkingAnim.setCycleCount(Animation.INDEFINITE)
 
+    // ── Pause button ─────────────────────────────────────────────────────
+    val pauseBtn = new Button("\u23f8  Pause")
+    pauseBtn.setId("pause-btn")
+    pauseBtn.getStyleClass.add("toolbar-btn")
+
+    def syncPauseButton(): Unit =
+      if model.isPausedState then
+        pauseBtn.setText("\u25b6  Resume")
+        pauseBtn.getStyleClass.add("paused")
+      else
+        pauseBtn.setText("\u23f8  Pause")
+        pauseBtn.getStyleClass.remove("paused")
+
+    def doPause(): Unit =
+      if model.isPausedState then model.resume() else model.pause()
+      syncPauseButton()
+
+    // ── Refresh logic ────────────────────────────────────────────────────
     def refresh(s: SharedGameModel.State): Unit =
-      val turn        = s.game.current.turn
-      val wBot        = model.botFor(Color.White)
-      val bBot        = model.botFor(Color.Black)
-      val shouldFlip  = (wBot.isDefined && bBot.isEmpty) ||
-                        (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
+      s.change match
+        case Change.ClockTick =>
+          side.updateClock(s.clock)
+          handleClockFlag(s)
+        case _ =>
+          fullRefresh(s)
+
+    def fullRefresh(s: SharedGameModel.State): Unit =
+      val turn       = s.game.current.turn
+      val wBot       = model.botFor(Color.White)
+      val bBot       = model.botFor(Color.Black)
+      val shouldFlip = (wBot.isDefined && bBot.isEmpty) ||
+                       (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
       board.setFlipped(shouldFlip)
       board.updateState(s.game)
-      val (cw, cb) = recomputeCaptures(s.game)
+      val (cw, cb)   = recomputeCaptures(s.game)
       side.update(s.game, s.moveHistory, cw, cb)
-      val isOver      = model.gameResult().isDefined
-      val isThinking  = !isOver && model.botFor(turn).isDefined
+      side.setPlayerNames(s.metadata.white, s.metadata.black)
+      side.updateClock(s.clock)
+      handleClockFlag(s)
+      val clockFlagged = s.clock.flatMap(_.flagged).isDefined
+      val isOver       = model.gameResult().isDefined || clockFlagged
+      val isThinking   = !isOver && model.botFor(turn).isDefined
       model.gameResult().foreach(r => side.showResult(resultMessage(r)))
       board.setBoardEnabled(!isOver && !isThinking)
       if isThinking then
@@ -66,14 +90,17 @@ object FxUI:
         thinkingLabel.setVisible(false)
         thinkingAnim.stop()
 
-    val (cw0, cb0) = recomputeCaptures(init.game)
-    side.update(init.game, init.moveHistory, cw0, cb0)
+    def handleClockFlag(s: SharedGameModel.State): Unit =
+      s.clock.flatMap(_.flagged).foreach { color =>
+        side.showResult(timeExpiredMessage(color))
+        board.setBoardEnabled(false)
+        thinkingLabel.setVisible(false)
+        thinkingAnim.stop()
+      }
 
-    model.addObserver { s =>
-      try Platform.runLater(() => refresh(s))
-      catch case _: Exception => ()
-    }
+    model.addObserver(s => try Platform.runLater(() => refresh(s)) catch case _: Exception => ())
 
+    // ── Move handling ────────────────────────────────────────────────────
     def askPromotion(): PieceType =
       val alert = new Alert(Alert.AlertType.CONFIRMATION)
       alert.setTitle("Pawn Promotion")
@@ -96,14 +123,21 @@ object FxUI:
         case nm: NormalMove if nm.promotion.isDefined =>
           nm.copy(promotion = Some(askPromotion()))
         case _ => move
-      model.applyMove(finalMove, moveNotation(finalMove))
-      ()
+      val _ = model.applyMove(finalMove, SharedGameModel.moveNotation(finalMove))
     }
+
+    // ── Game actions ─────────────────────────────────────────────────────
+    def doNewGame(): Unit =
+      NewGameDialog.show(stage).foreach { setup =>
+        model.newGame(setup.whiteBot, setup.blackBot, setup.whiteName, setup.blackName, setup.clockConfig)
+        syncPauseButton()
+      }
 
     def doResign(): Unit =
       val turn   = model.state.game.current.turn
       val loser  = if turn == Color.White then "White" else "Black"
       val winner = if turn == Color.White then "Black" else "White"
+      model.resign()
       side.showResult(loser + " resigned. " + winner + " wins.")
       board.setBoardEnabled(false)
 
@@ -125,46 +159,65 @@ object FxUI:
 
     def doExportPgn(): Unit = showExportDialog("Export PGN", model.exportPgn(), stage)
 
-    def choosePlayer(header: String): Option[Option[Bot]] =
-      val alert = new Alert(Alert.AlertType.CONFIRMATION)
-      alert.setTitle("New Game")
-      alert.setHeaderText(header)
-      alert.initOwner(stage)
-      val humanBtn = new ButtonType("Human")
-      val botBtns  = BotRegistry.all.map(b => new ButtonType(b.name))
-      alert.getButtonTypes.setAll((humanBtn :: botBtns)*)
-      val chosen = alert.showAndWait()
-      if !chosen.isPresent then None
-      else
-        val bot = BotRegistry.all.zip(botBtns).collectFirst {
-          case (b, btn) if btn == chosen.get => b
-        }
-        Some(bot)
+    var sceneRef: Scene = null  // set after scene is created; only called on JavaFX thread
 
-    def doNewGame(): Unit =
-      for
-        white <- choosePlayer("Choose White player")
-        black <- choosePlayer("Choose Black player")
-      do model.newGame(white, black)
+    def doThemeNext(): Unit =
+      ThemeManager.next()
+      if sceneRef != null then ThemeManager.apply(sceneRef)
+      board.updateTheme(ThemeManager.board)
 
-    val actions: List[(KeyBinding, () => Unit)] = List(
-      (Keymap.newGame,   () => doNewGame()),
-      (Keymap.undo,      () => model.undo()),
-      (Keymap.redo,      () => model.redo()),
-      (Keymap.importFen, () => doImportFen()),
-      (Keymap.exportFen, () => doExportFen()),
-      (Keymap.importPgn, () => doImportPgn()),
-      (Keymap.exportPgn, () => doExportPgn()),
-      (Keymap.resign,    () => doResign())
+    // ── Toolbar ──────────────────────────────────────────────────────────
+    val kbActions: List[(KeyBinding, () => Unit)] = List(
+      Keymap.newGame   -> (() => doNewGame()),
+      Keymap.resign    -> (() => doResign()),
+      Keymap.undo      -> (() => model.undo()),
+      Keymap.redo      -> (() => model.redo()),
+      Keymap.importFen -> (() => doImportFen()),
+      Keymap.exportFen -> (() => doExportFen()),
+      Keymap.importPgn -> (() => doImportPgn()),
+      Keymap.exportPgn -> (() => doExportPgn()),
+      Keymap.pause     -> (() => doPause()),
+      Keymap.themeNext -> (() => doThemeNext())
     )
 
-    val toolbarButtons = actions.map { (kb, action) =>
+    def toolbarBtn(kb: KeyBinding, action: () => Unit): Button =
       val b = new Button(kb.buttonLabel)
+      b.getStyleClass.add("toolbar-btn")
       b.setOnAction(_ => action())
       b
-    }
-    val toolbar = new ToolBar(toolbarButtons: _*)
 
+    val fenMenu = new MenuButton("FEN \u25be")
+    fenMenu.getStyleClass.add("toolbar-btn")
+    val _ = fenMenu.getItems.addAll(
+      menuItem("Import FEN (F)", () => doImportFen()),
+      menuItem("Export FEN (E)", () => doExportFen())
+    )
+
+    val pgnMenu = new MenuButton("PGN \u25be")
+    pgnMenu.getStyleClass.add("toolbar-btn")
+    val _ = pgnMenu.getItems.addAll(
+      menuItem("Import PGN (P)", () => doImportPgn()),
+      menuItem("Export PGN (O)", () => doExportPgn())
+    )
+
+    pauseBtn.setOnAction(_ => doPause())
+    val themeBtn = toolbarBtn(Keymap.themeNext, () => doThemeNext())
+
+    val toolbar = new ToolBar(
+      toolbarBtn(Keymap.newGame, () => doNewGame()),
+      toolbarBtn(Keymap.resign,  () => doResign()),
+      new Separator(),
+      toolbarBtn(Keymap.undo, () => model.undo()),
+      toolbarBtn(Keymap.redo, () => model.redo()),
+      new Separator(),
+      pauseBtn,
+      new Separator(),
+      fenMenu, pgnMenu,
+      new Separator(),
+      themeBtn
+    )
+
+    // ── Layout ───────────────────────────────────────────────────────────
     val boardStack = new StackPane(board.canvas, thinkingLabel)
     StackPane.setAlignment(thinkingLabel, Pos.CENTER)
 
@@ -174,20 +227,24 @@ object FxUI:
     root.setRight(side.vbox)
     BorderPane.setMargin(boardStack, new Insets(8))
 
-    val kbMap: Map[KeyCode, () => Unit] = actions.flatMap { (kb, action) =>
+    // ── Scene & keyboard shortcuts ────────────────────────────────────────
+    val scene = new Scene(root)
+    sceneRef = scene
+    ThemeManager.apply(scene)
+
+    val kbMap: Map[KeyCode, () => Unit] = kbActions.flatMap { (kb, action) =>
       Option(KeyCode.getKeyCode(kb.key.toUpper.toString)).map(_ -> action)
     }.toMap
 
-    val scene = new Scene(root)
     scene.addEventFilter(KeyEvent.KEY_PRESSED, (event: KeyEvent) => {
       if !event.isControlDown && !event.isAltDown && !event.isMetaDown then
-        kbMap.get(event.getCode).foreach { action =>
-          action()
-          event.consume()
-        }
+        val handled = kbMap.get(event.getCode).fold(false) { action => action(); true }
+        if handled then event.consume()
     })
 
     stage.setTitle("MaiChess")
+    stage.setMinWidth(830.0)
+    stage.setMinHeight(660.0)
     stage.setScene(scene)
     stage.setOnCloseRequest { (_: WindowEvent) =>
       model.shutdown()
@@ -195,7 +252,12 @@ object FxUI:
     }
     stage.show()
 
-  // ── helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  private def menuItem(label: String, action: () => Unit): MenuItem =
+    val item = new MenuItem(label)
+    item.setOnAction(_ => action())
+    item
 
   private def showExportDialog(title: String, content: String, owner: Stage): Unit =
     val dialog = new Stage()
@@ -213,10 +275,8 @@ object FxUI:
     }
     val closeBtn = new Button("Close")
     closeBtn.setOnAction(_ => dialog.close())
-    val buttons = new HBox(8.0)
-    val _ = buttons.getChildren.addAll(copyBtn, closeBtn)
-    val root = new VBox(8.0)
-    val _ = root.getChildren.addAll(ta, buttons)
+    val buttons = new HBox(8.0, copyBtn, closeBtn)
+    val root    = new VBox(8.0, ta, buttons)
     root.setPadding(new Insets(10))
     dialog.setScene(new Scene(root, 500, 300))
     dialog.showAndWait()
@@ -240,34 +300,21 @@ object FxUI:
     }
     val cancelBtn = new Button("Cancel")
     cancelBtn.setOnAction(_ => dialog.close())
-    val buttons = new HBox(8.0)
-    val _ = buttons.getChildren.addAll(pasteBtn, okBtn, cancelBtn)
-    val root = new VBox(8.0)
-    val _ = root.getChildren.addAll(ta, buttons)
+    val buttons = new HBox(8.0, pasteBtn, okBtn, cancelBtn)
+    val root    = new VBox(8.0, ta, buttons)
     root.setPadding(new Insets(10))
     dialog.setScene(new Scene(root, 500, 300))
     dialog.showAndWait()
     result.get()
 
-  private def capturedIn(before: Board, after: Board, movingColor: Color): List[Piece] =
-    val opponentBefore = before.pieces.values.filter(_.color != movingColor).toList
-    val opponentAfter  = after.pieces.values.filter(_.color != movingColor).toList
-    opponentBefore diff opponentAfter
-
-  private def moveNotation(move: Move): String = move match
-    case NormalMove(from, to, None)         => from.toAlgebraic + "-" + to.toAlgebraic
-    case NormalMove(from, to, Some(pt))     => from.toAlgebraic + "-" + to.toAlgebraic + "=" + promoLetter(pt)
-    case CastlingMove(from, _, rookFrom, _) =>
-      if rookFrom.file.toInt > from.file.toInt then "O-O" else "O-O-O"
-    case EnPassantMove(from, to, _)         => from.toAlgebraic + "-" + to.toAlgebraic
-
-  private def promoLetter(pt: PieceType): String = pt match
-    case PieceType.Queen  => "Q"
-    case PieceType.Rook   => "R"
-    case PieceType.Bishop => "B"
-    case PieceType.Knight => "N"
-    case PieceType.King   => "K"
-    case PieceType.Pawn   => "P"
+  private def recomputeCaptures(state: GameState): (List[Piece], List[Piece]) =
+    val sits = state.history.reverse :+ state.current
+    sits.zip(sits.drop(1)).foldLeft((List.empty[Piece], List.empty[Piece])) {
+      case ((cw, cb), (before, after)) =>
+        val caps = before.board.pieces.values.filter(_.color != before.turn).toList diff
+                   after.board.pieces.values.filter(_.color != before.turn).toList
+        if before.turn == Color.White then (cw ++ caps, cb) else (cw, cb ++ caps)
+    }
 
   private def resultMessage(result: GameResult): String = result match
     case GameResult.Checkmate(Color.White)                => "Checkmate \u2014 White wins."
@@ -277,3 +324,7 @@ object FxUI:
     case GameResult.Draw(DrawReason.InsufficientMaterial) => "Draw: insufficient material."
     case GameResult.Draw(DrawReason.ThreefoldRepetition)  => "Draw: threefold repetition."
     case GameResult.Draw(DrawReason.Agreement)            => "Draw by agreement."
+
+  private def timeExpiredMessage(flagged: Color): String =
+    if flagged == Color.White then "White's time expired. Black wins."
+    else "Black's time expired. White wins."

@@ -12,3 +12,5 @@ object Keymap:
   val exportFen: KeyBinding = KeyBinding('e', "Export FEN")
   val importPgn: KeyBinding = KeyBinding('p', "Import PGN")
   val exportPgn: KeyBinding = KeyBinding('o', "Export PGN")
+  val pause:     KeyBinding = KeyBinding('u', "Pause")
+  val themeNext: KeyBinding = KeyBinding('t', "Theme")

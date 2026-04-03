@@ -7,7 +7,8 @@ class KeymapSuite extends FunSuite:
 
   private val allBindings: List[KeyBinding] = List(
     Keymap.newGame, Keymap.resign, Keymap.undo, Keymap.redo,
-    Keymap.importFen, Keymap.exportFen, Keymap.importPgn, Keymap.exportPgn
+    Keymap.importFen, Keymap.exportFen, Keymap.importPgn, Keymap.exportPgn,
+    Keymap.pause, Keymap.themeNext
   )
 
   test("all keys are distinct — no conflicts"):
@@ -23,6 +24,8 @@ class KeymapSuite extends FunSuite:
     assertEquals(Keymap.exportFen.buttonLabel, "E Export FEN")
     assertEquals(Keymap.importPgn.buttonLabel, "P Import PGN")
     assertEquals(Keymap.exportPgn.buttonLabel, "O Export PGN")
+    assertEquals(Keymap.pause.buttonLabel,     "U Pause")
+    assertEquals(Keymap.themeNext.buttonLabel, "T Theme")
 
   test("key values match TUI shortcuts"):
     assertEquals(Keymap.newGame.key,   'n')
@@ -33,6 +36,8 @@ class KeymapSuite extends FunSuite:
     assertEquals(Keymap.exportFen.key, 'e')
     assertEquals(Keymap.importPgn.key, 'p')
     assertEquals(Keymap.exportPgn.key, 'o')
+    assertEquals(Keymap.pause.key,     'u')
+    assertEquals(Keymap.themeNext.key, 't')
 
   test("all keys are lowercase"):
     allBindings.foreach(kb => assert(kb.key.isLower, s"${kb.key} is not lowercase"))

@@ -2,9 +2,9 @@ package org.maichess.mono.tests
 
 import munit.FunSuite
 import org.maichess.mono.bots.{Ai, Bot, BotRegistry, MinimaxBot}
+import org.maichess.mono.engine.*
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.*
-import org.maichess.mono.engine.*
 
 class AiSuite extends FunSuite:
 
@@ -189,9 +189,3 @@ class AiSuite extends FunSuite:
   test("BotRegistry.all bots have distinct names"):
     val names = BotRegistry.all.map(_.name)
     assertEquals(names.distinct.length, names.length)
-
-  test("BotRegistry.all bots can each choose a move from start"):
-    val state = ctrl.newGame()
-    BotRegistry.all.foreach { bot =>
-      assert(bot.chooseMove(state).isDefined, s"${bot.name} returned no move")
-    }

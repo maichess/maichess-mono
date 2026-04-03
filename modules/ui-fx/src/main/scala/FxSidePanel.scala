@@ -1,22 +1,41 @@
 package org.maichess.mono.uifx
 
-import javafx.geometry.Insets
-import javafx.scene.control.{Label, ListView}
-import javafx.scene.layout.VBox
+import javafx.geometry.{Insets, Pos}
+import javafx.scene.control.{Label, ListView, Separator}
+import javafx.scene.layout.{Priority, VBox}
 import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
 
+/** Right-hand panel: Black player strip → move history → result area → White player strip. */
 class FxSidePanel:
-  private val statusLabel        = new Label("White to move")
-  private val capturedWhiteLabel = new Label("White captured: ")
-  private val capturedBlackLabel = new Label("Black captured: ")
-  private val historyList        = new ListView[String]()
 
-  val vbox = new VBox(8.0)
-  vbox.setPadding(new Insets(10))
-  vbox.setPrefWidth(180)
-  vbox.getChildren.addAll(statusLabel, capturedWhiteLabel, capturedBlackLabel, historyList)
+  val blackStrip  = new FxPlayerStrip("player-black")
+  val whiteStrip  = new FxPlayerStrip("player-white")
+
+  private val historyList  = new ListView[String]()
+  private val resultLabel  = new Label()
+
+  historyList.getStyleClass.add("history-list")
+  resultLabel.setId("result-label")
+  resultLabel.setWrapText(true)
+  resultLabel.setMaxWidth(Double.MaxValue)
+  resultLabel.setAlignment(Pos.CENTER)
+  resultLabel.setVisible(false)
+
+  VBox.setVgrow(historyList, Priority.ALWAYS)
+
+  val vbox = new VBox()
+  vbox.setId("side-panel")
+  vbox.setPrefWidth(230.0)
+  val _ = vbox.getChildren.addAll(
+    blackStrip.root,
+    new Separator(),
+    historyList,
+    resultLabel,
+    new Separator(),
+    whiteStrip.root
+  )
 
   def update(
     state:         GameState,
@@ -24,11 +43,28 @@ class FxSidePanel:
     capturedWhite: List[Piece],
     capturedBlack: List[Piece]
   ): Unit =
-    val checkNote = if StandardRules.isCheck(state.current) then " \u2014 CHECK!" else ""
-    val turnText  = if state.current.turn == Color.White then "White to move" else "Black to move"
-    statusLabel.setText(turnText + checkNote)
-    capturedWhiteLabel.setText("White captured: " + capturedWhite.map(pieceSymbol).mkString)
-    capturedBlackLabel.setText("Black captured: " + capturedBlack.map(pieceSymbol).mkString)
+    val isWhiteTurn = state.current.turn == Color.White
+    whiteStrip.setActive(isWhiteTurn)
+    blackStrip.setActive(!isWhiteTurn)
+    whiteStrip.setCaptured(capturedWhite)
+    blackStrip.setCaptured(capturedBlack)
+    refreshHistory(history)
+
+  def setPlayerNames(white: String, black: String): Unit =
+    whiteStrip.setName(white)
+    blackStrip.setName(black)
+
+  def updateClock(clock: Option[ClockState]): Unit =
+    whiteStrip.setClock(clock, Color.White)
+    blackStrip.setClock(clock, Color.Black)
+
+  def showResult(message: String): Unit =
+    whiteStrip.setActive(false)
+    blackStrip.setActive(false)
+    resultLabel.setText(message)
+    resultLabel.setVisible(true)
+
+  private def refreshHistory(history: List[String]): Unit =
     historyList.getItems.clear()
     history.zipWithIndex.grouped(2).foreach { pair =>
       val head  = pair.headOption
@@ -37,23 +73,5 @@ class FxSidePanel:
       val num   = (head.fold(0)(_._2 / 2) + 1).toString + ".  "
       historyList.getItems.add(num + white + "    " + black)
     }
-
-  def showResult(message: String): Unit =
-    statusLabel.setText(message)
-
-  private def pieceSymbol(piece: Piece): String = (piece.color match
-    case Color.White => piece.pieceType match
-      case PieceType.King   => '\u2654'
-      case PieceType.Queen  => '\u2655'
-      case PieceType.Rook   => '\u2656'
-      case PieceType.Bishop => '\u2657'
-      case PieceType.Knight => '\u2658'
-      case PieceType.Pawn   => '\u2659'
-    case Color.Black => piece.pieceType match
-      case PieceType.King   => '\u265A'
-      case PieceType.Queen  => '\u265B'
-      case PieceType.Rook   => '\u265C'
-      case PieceType.Bishop => '\u265D'
-      case PieceType.Knight => '\u265E'
-      case PieceType.Pawn   => '\u265F'
-  ).toString
+    if !historyList.getItems.isEmpty then
+      historyList.scrollTo(historyList.getItems.size - 1)

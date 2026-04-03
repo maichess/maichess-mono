@@ -25,30 +25,37 @@ object LanternaUI:
       }
 
     def syncUiFrom(s: SharedGameModel.State): Unit =
-      val (cw, cb)   = recomputeCaptures(s.game)
-      val turn       = s.game.current.turn
-      val wBot       = model.botFor(Color.White)
-      val bBot       = model.botFor(Color.Black)
-      val shouldFlip = (wBot.isDefined && bBot.isEmpty) ||
-                       (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
-      boardComponent.setFlipped(shouldFlip)
       s.change match
-        case Change.Reset =>
-          boardComponent.reset(s.game)
+        case Change.ClockTick =>
+          sidePanel.updateClock(s.clock)
+          s.clock.flatMap(_.flagged).foreach { color =>
+            sidePanel.showResult(timeExpiredMessage(color))
+            boardComponent.setBoardEnabled(false)
+          }
         case _ =>
-          boardComponent.updateState(s.game)
-      sidePanel.update(s.game, s.moveHistory, cw, cb)
-      val isOver     = model.gameResult().isDefined
-      val isThinking = !isOver && model.botFor(turn).isDefined
-      boardComponent.setBoardEnabled(!isOver && !isThinking)
-      if isThinking then sidePanel.showThinking()
-      else               sidePanel.hideThinking()
-      model.gameResult().foreach { result =>
-        sidePanel.showResult(resultMessage(result))
-      }
+          val (cw, cb)   = recomputeCaptures(s.game)
+          val turn       = s.game.current.turn
+          val wBot       = model.botFor(Color.White)
+          val bBot       = model.botFor(Color.Black)
+          val shouldFlip = (wBot.isDefined && bBot.isEmpty) ||
+                           (wBot.isEmpty && bBot.isEmpty && turn == Color.Black)
+          boardComponent.setFlipped(shouldFlip)
+          s.change match
+            case Change.Reset => boardComponent.reset(s.game)
+            case _            => boardComponent.updateState(s.game)
+          sidePanel.update(s.game, s.moveHistory, cw, cb)
+          sidePanel.setPlayerNames(s.metadata.white, s.metadata.black)
+          sidePanel.updateClock(s.clock)
+          val clockFlagged = s.clock.flatMap(_.flagged).isDefined
+          val isOver       = model.gameResult().isDefined || clockFlagged
+          val isThinking   = !isOver && model.botFor(turn).isDefined
+          boardComponent.setBoardEnabled(!isOver && !isThinking)
+          if isThinking then sidePanel.showThinking()
+          else               sidePanel.hideThinking()
+          s.clock.flatMap(_.flagged).fold(
+            model.gameResult().foreach(r => sidePanel.showResult(resultMessage(r)))
+          ) { color => sidePanel.showResult(timeExpiredMessage(color)) }
 
-    // Observer: sync TUI whenever the model changes (including from FX UI).
-    // Wrapped in invokeLater so it always runs on the Lanterna GUI thread.
     model.addObserver { s =>
       try gui.getGUIThread.invokeLater(() => syncUiFrom(s))
       catch case _: Exception => ()
@@ -78,13 +85,17 @@ object LanternaUI:
       val turn   = model.state.game.current.turn
       val loser  = if turn == Color.White then "White" else "Black"
       val winner = if turn == Color.White then "Black" else "White"
+      model.resign()
       sidePanel.showResult(loser + " resigned. " + winner + " wins.")
       boardComponent.setBoardEnabled(false)
 
     def doNewGame(): Unit =
-      ChessDialog.showGameSetup(gui).foreach { (white, black) =>
-        model.newGame(white, black)
+      ChessDialog.showGameSetup(gui).foreach { setup =>
+        model.newGame(setup.whiteBot, setup.blackBot, setup.whiteName, setup.blackName, setup.clockConfig)
       }
+
+    def doPause(): Unit =
+      if model.isPausedState then model.resume() else model.pause()
 
     lazy val shortcutMap: Map[Char, () => Unit] = Map(
       Keymap.newGame.key   -> (() => doNewGame()),
@@ -94,7 +105,8 @@ object LanternaUI:
       Keymap.importFen.key -> (() => doImportFen()),
       Keymap.exportFen.key -> (() => doExportFen()),
       Keymap.importPgn.key -> (() => doImportPgn()),
-      Keymap.exportPgn.key -> (() => doExportPgn())
+      Keymap.exportPgn.key -> (() => doExportPgn()),
+      Keymap.pause.key     -> (() => doPause())
     )
 
     lazy val boardComponent: BoardComponent = new BoardComponent(model.state.game, move => {
@@ -103,8 +115,7 @@ object LanternaUI:
           NormalMove(nm.from, nm.to, Some(PromotionDialog.show(gui)))
         case _ => move
       val notation = SidePanel.moveNotation(finalMove)
-      model.applyMove(finalMove, notation)
-      ()
+      val _        = model.applyMove(finalMove, notation)
     }, shortcutMap)
 
     val menuBar = new MenuBar(
@@ -137,18 +148,17 @@ object LanternaUI:
     case GameResult.Draw(DrawReason.ThreefoldRepetition)  => "Draw: threefold repetition."
     case GameResult.Draw(DrawReason.Agreement)            => "Draw by agreement."
 
+  private def timeExpiredMessage(flagged: Color): String =
+    if flagged == Color.White then "White's time expired. Black wins."
+    else "Black's time expired. White wins."
+
 @main def runGame(): Unit =
-  // Suppress JavaFX startup log messages before they can reach the terminal
-  // and corrupt Lanterna's raw-mode display.
   java.util.logging.Logger.getLogger("com.sun.javafx").setLevel(java.util.logging.Level.OFF)
   java.util.logging.Logger.getLogger("com.sun.glass").setLevel(java.util.logging.Level.OFF)
 
   val ctrl  = new GameController(StandardRules)
   val model = new SharedGameModel(ctrl)
 
-  // Start JavaFX asynchronously (non-blocking).  Platform.startup fires the
-  // runnable on the FX Application Thread; we wait until the window is shown
-  // before touching the terminal, so all FX init noise is flushed first.
   javafx.application.Platform.setImplicitExit(false)
   val fxReady = new java.util.concurrent.CountDownLatch(1)
   javafx.application.Platform.startup(() =>
@@ -158,7 +168,6 @@ object LanternaUI:
   )
   fxReady.await()
 
-  // Run Lanterna on the main thread — same as the original single-UI setup.
   val factory   = new DefaultTerminalFactory()
   val isWindows = System.getProperty("os.name").toLowerCase.contains("win")
   if isWindows then
