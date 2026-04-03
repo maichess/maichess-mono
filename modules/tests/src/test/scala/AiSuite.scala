@@ -96,6 +96,40 @@ class AiSuite extends FunSuite:
     val legal  = StandardRules.allLegalMoves(state.current)
     assert(legal.contains(chosen), s"$chosen is not a legal move")
 
+  // depth 3 exercises searchMax and alpha-beta cutoffs
+  test("bestMove at depth 3 returns a valid legal move"):
+    val state  = ctrl.newGame()
+    val chosen = Ai.bestMove(StandardRules)(Ai.standardEval)(3)(state)
+      .getOrElse(throw AssertionError("No move"))
+    val legal  = StandardRules.allLegalMoves(state.current)
+    assert(legal.contains(chosen), s"$chosen is not a legal move")
+
+  // position with material asymmetry to trigger alpha-beta cutoffs
+  test("bestMove at depth 3 in tactical position exercises alpha-beta cutoff"):
+    // White queen can fork or capture; unbalanced material triggers pruning
+    val pieces = Map(
+      sq("e1") -> Piece(Color.White, PieceType.King),
+      sq("e8") -> Piece(Color.Black, PieceType.King),
+      sq("d1") -> Piece(Color.White, PieceType.Queen),
+      sq("d8") -> Piece(Color.Black, PieceType.Queen),
+      sq("a1") -> Piece(Color.White, PieceType.Rook),
+      sq("a8") -> Piece(Color.Black, PieceType.Rook),
+      sq("h1") -> Piece(Color.White, PieceType.Rook),
+      sq("h8") -> Piece(Color.Black, PieceType.Rook)
+    )
+    val sit   = Situation(Board(pieces), Color.White, CastlingRights.none, None, 0, 1)
+    val state = GameState(Nil, sit)
+    val result = Ai.bestMove(StandardRules)(Ai.standardEval)(3)(state)
+    assert(result.isDefined)
+
+  // Black-to-move at depth 3: pickBest minimizing branch
+  test("bestMove at depth 3 Black to move exercises minimizing pickBest"):
+    val state0 = ctrl.newGame()
+    val state1 = ctrl.applyMove(state0, mv("e2", "e4")).getOrElse(throw AssertionError(""))
+    val chosen = Ai.bestMove(StandardRules)(Ai.standardEval)(3)(state1)
+      .getOrElse(throw AssertionError("No move"))
+    assert(StandardRules.allLegalMoves(state1.current).contains(chosen))
+
   // ── enPassant path ─────────────────────────────────────────────────────────
 
   test("bestMove handles en passant position without error"):

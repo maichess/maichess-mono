@@ -160,4 +160,23 @@
 .combo-box-popup .list-view { -fx-background-color: #4a3220; }
 .combo-box-popup .list-cell:hover { -fx-background-color: #7a5230; }
 
+/* ── Player cards (New Game dialog) ──────────────────────────────────── */
+.player-card {
+    -fx-background-color: #3b2a1a;
+    -fx-background-radius: 8;
+    -fx-border-radius:     8;
+    -fx-border-width:      0 0 0 4;
+}
+.player-card.white-card { -fx-border-color: #f5deb3; }
+.player-card.black-card  { -fx-border-color: #7a5230; }
+.player-card-icon {
+    -fx-font-size:   22px;
+    -fx-text-fill:   #f5deb3;
+}
+.player-card-color {
+    -fx-font-size:   11px;
+    -fx-font-weight: bold;
+    -fx-text-fill:   #c4a882;
+}
+
 .separator .line { -fx-border-color: #5c3d1e; }

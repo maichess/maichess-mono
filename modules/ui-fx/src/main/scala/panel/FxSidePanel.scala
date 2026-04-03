@@ -27,7 +27,7 @@ class FxSidePanel:
 
   val vbox = new VBox()
   vbox.setId("side-panel")
-  vbox.setPrefWidth(230.0)
+  vbox.setMinWidth(280.0)
   val _ = vbox.getChildren.addAll(
     blackStrip.root,
     new Separator(),
@@ -63,6 +63,9 @@ class FxSidePanel:
     blackStrip.setActive(false)
     resultLabel.setText(message)
     resultLabel.setVisible(true)
+
+  def hideResult(): Unit =
+    resultLabel.setVisible(false)
 
   private def refreshHistory(history: List[String]): Unit =
     historyList.getItems.clear()

@@ -114,8 +114,7 @@ object LanternaUI:
         case nm: NormalMove if nm.promotion.isDefined =>
           NormalMove(nm.from, nm.to, Some(PromotionDialog.show(gui)))
         case _ => move
-      val notation = SidePanel.moveNotation(finalMove)
-      val _        = model.applyMove(finalMove, notation)
+      val _ = model.applyMove(finalMove)
     }, shortcutMap)
 
     val menuBar = new MenuBar(

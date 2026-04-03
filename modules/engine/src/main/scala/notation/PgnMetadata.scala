@@ -27,7 +27,7 @@ object PgnMetadata:
     black = "Black"
   )
 
-  private def pad2(n: Int): String = if n < 10 then "0" + n.toString else n.toString
+  private def pad2(n: Int): String = n.toString.reverse.padTo(2, '0').reverse
   private def pad4(n: Int): String = n.toString.reverse.padTo(4, '0').reverse
 
   /** Builds metadata from player display names, resolving the current date and local hostname. */

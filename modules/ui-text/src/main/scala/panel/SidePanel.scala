@@ -13,8 +13,6 @@ object SidePanel:
     val opponentAfter  = after.pieces.values.filter(_.color != movingColor).toList
     opponentBefore diff opponentAfter
 
-  def moveNotation(move: Move): String = SharedGameModel.moveNotation(move)
-
   def pieceSymbol(piece: Piece): String =
     BoardComponent.pieceChar(piece).toString
 

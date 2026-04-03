@@ -175,37 +175,6 @@ class TextUISuite extends FunSuite:
     val after  = Board(Map(sq("e8") -> whiteQueen))
     assertEquals(SidePanel.capturedPieces(before, after, Color.White), List.empty)
 
-  // ── moveNotation ──────────────────────────────────────────────────────────────
-
-  test("moveNotation: normal move"):
-    assertEquals(SidePanel.moveNotation(NormalMove(sq("e2"), sq("e4"), None)), "e2-e4")
-
-  test("moveNotation: promotion appends piece letter"):
-    assertEquals(
-      SidePanel.moveNotation(NormalMove(sq("e7"), sq("e8"), Some(PieceType.Queen))),
-      "e7-e8=Q"
-    )
-
-  test("moveNotation: kingside castling"):
-    // rookFrom(h1) file=7 > from(e1) file=4
-    assertEquals(
-      SidePanel.moveNotation(CastlingMove(sq("e1"), sq("g1"), sq("h1"), sq("f1"))),
-      "O-O"
-    )
-
-  test("moveNotation: queenside castling"):
-    // rookFrom(a1) file=0 < from(e1) file=4
-    assertEquals(
-      SidePanel.moveNotation(CastlingMove(sq("e1"), sq("c1"), sq("a1"), sq("d1"))),
-      "O-O-O"
-    )
-
-  test("moveNotation: en passant uses same file-rank format"):
-    assertEquals(
-      SidePanel.moveNotation(EnPassantMove(sq("e5"), sq("d6"), sq("d5"))),
-      "e5-d6"
-    )
-
   // ── pieceSymbol ───────────────────────────────────────────────────────────────
 
   test("pieceSymbol: white king returns ♔"):

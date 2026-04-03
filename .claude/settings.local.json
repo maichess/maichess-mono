@@ -14,7 +14,9 @@
       "Bash(sbt \"bots/compile\")",
       "Bash(sbt \"bots/Test/run\")",
       "Bash(sbt clean:*)",
-      "Bash(sbt \"bots/compile\" \"uiFx/compile\" \"uiText/compile\")"
+      "Bash(sbt \"bots/compile\" \"uiFx/compile\" \"uiText/compile\")",
+      "Bash(sbt \"test\")",
+      "Bash(sbt \"coverage; test; coverageReport\")"
     ]
   }
 }

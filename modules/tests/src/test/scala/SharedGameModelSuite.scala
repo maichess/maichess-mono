@@ -18,13 +18,13 @@ class SharedGameModelSuite extends FunSuite:
   test("importPgn single move populates moveHistory"):
     val model = makeModel()
     model.importPgn("1. e4 *") match
-      case Right(()) => assertEquals(model.state.moveHistory, List("e2-e4"))
+      case Right(()) => assertEquals(model.state.moveHistory, List("e4"))
       case Left(err) => fail(err)
 
   test("importPgn multiple moves populates full moveHistory"):
     val model = makeModel()
     model.importPgn("1. e4 e5 2. Nf3 *") match
-      case Right(()) => assertEquals(model.state.moveHistory, List("e2-e4", "e7-e5", "g1-f3"))
+      case Right(()) => assertEquals(model.state.moveHistory, List("e4", "e5", "Nf3"))
       case Left(err) => fail(err)
 
   test("importPgn invalid notation returns Left"):
@@ -42,8 +42,8 @@ class SharedGameModelSuite extends FunSuite:
     model.importPgn("1. e4 e5 *") match
       case Right(()) =>
         model.undo()
-        assertEquals(model.state.moveHistory, List("e2-e4"))
-        assertEquals(model.state.futureMoveHistory, List("e7-e5"))
+        assertEquals(model.state.moveHistory, List("e4"))
+        assertEquals(model.state.futureMoveHistory, List("e5"))
       case Left(err) => fail(err)
 
   test("undo down to empty history after importPgn"):
@@ -52,7 +52,7 @@ class SharedGameModelSuite extends FunSuite:
       case Right(()) =>
         model.undo()
         assertEquals(model.state.moveHistory, Nil)
-        assertEquals(model.state.futureMoveHistory, List("e2-e4"))
+        assertEquals(model.state.futureMoveHistory, List("e4"))
       case Left(err) => fail(err)
 
   test("redo after undo after importPgn restores moveHistory"):
@@ -61,7 +61,7 @@ class SharedGameModelSuite extends FunSuite:
       case Right(()) =>
         model.undo()
         model.redo()
-        assertEquals(model.state.moveHistory, List("e2-e4", "e7-e5"))
+        assertEquals(model.state.moveHistory, List("e4", "e5"))
         assertEquals(model.state.futureMoveHistory, Nil)
       case Left(err) => fail(err)
 
@@ -72,11 +72,11 @@ class SharedGameModelSuite extends FunSuite:
       case Right(()) => assert(model.state.moveHistory.contains("O-O"))
       case Left(err) => fail(err)
 
-  test("importPgn with en passant shows coordinate notation"):
+  test("importPgn with en passant shows SAN notation"):
     val pgn = "1. e4 d5 2. e5 f5 3. exf6 *"
     val model = makeModel()
     model.importPgn(pgn) match
-      case Right(()) => assert(model.state.moveHistory.contains("e5-f6"))
+      case Right(()) => assert(model.state.moveHistory.contains("exf6"))
       case Left(err) => fail(err)
 
   test("importFen clears moveHistory"):

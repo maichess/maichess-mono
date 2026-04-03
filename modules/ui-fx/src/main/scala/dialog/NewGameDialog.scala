@@ -1,8 +1,9 @@
 package org.maichess.mono.uifx
 
-import javafx.geometry.{HPos, Insets, Pos, VPos}
+import javafx.geometry.{Insets, Pos, VPos}
 import javafx.scene.Scene
 import javafx.scene.control.*
+import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.*
 import javafx.stage.{Modality, Stage}
 import java.util.concurrent.atomic.AtomicReference
@@ -41,20 +42,15 @@ object NewGameDialog:
     dialog.setTitle("New Game")
     dialog.setResizable(false)
 
-    // ── Player section ──────────────────────────────────────────────────
-    val playerGrid = new GridPane()
-    playerGrid.setHgap(10.0)
-    playerGrid.setVgap(8.0)
-
+    // ── Player fields ───────────────────────────────────────────────────
     val whiteNameField = new TextField("White")
     val blackNameField = new TextField("Black")
-    whiteNameField.setPrefWidth(160.0)
-    blackNameField.setPrefWidth(160.0)
+    whiteNameField.setPrefWidth(180.0)
+    blackNameField.setPrefWidth(180.0)
 
     val whiteCombo = buildBotCombo()
     val blackCombo = buildBotCombo()
 
-    // Auto-fill name when bot is selected
     whiteCombo.setOnAction { _ =>
       val sel = whiteCombo.getValue
       if sel != null then whiteNameField.setText(sel)
@@ -63,9 +59,6 @@ object NewGameDialog:
       val sel = blackCombo.getValue
       if sel != null then blackNameField.setText(sel)
     }
-
-    addRow(playerGrid, 0, sectionLabel("WHITE PLAYER"), whiteNameField, whiteCombo)
-    addRow(playerGrid, 1, sectionLabel("BLACK PLAYER"), blackNameField, blackCombo)
 
     // ── Time-control section ────────────────────────────────────────────
     val clockCombo = new ComboBox[String]()
@@ -79,11 +72,11 @@ object NewGameDialog:
     minsSpinner.setEditable(true)
     secsSpinner.setEditable(true)
     incSpinner.setEditable(true)
-    minsSpinner.setPrefWidth(70.0)
-    secsSpinner.setPrefWidth(70.0)
-    incSpinner.setPrefWidth(70.0)
+    minsSpinner.setPrefWidth(80.0)
+    secsSpinner.setPrefWidth(80.0)
+    incSpinner.setPrefWidth(80.0)
 
-    val customRow = new HBox(6.0,
+    val customRow = new HBox(8.0,
       fieldLabel("Min"), minsSpinner,
       fieldLabel("Sec"), secsSpinner,
       fieldLabel("+Inc"), incSpinner
@@ -118,15 +111,22 @@ object NewGameDialog:
     val btnRow = new HBox(8.0, cancelBtn, startBtn)
     btnRow.setAlignment(Pos.CENTER_RIGHT)
 
-    // ── Assembly ────────────────────────────────────────────────────────
-    val root = new VBox(14.0)
+    // ── Player cards ─────────────────────────────────────────────────────
+    val whiteCard = buildPlayerCard("\u2654", "WHITE", whiteNameField, whiteCombo, "white-card")
+    val blackCard = buildPlayerCard("\u265a", "BLACK", blackNameField, blackCombo, "black-card")
+
+    // ── Header (logo) ────────────────────────────────────────────────────
+    val header = buildHeader()
+
+    // ── Assembly ─────────────────────────────────────────────────────────
+    val root = new VBox(16.0)
     root.setId("dialog-root")
-    val title = new Label("New Game")
-    title.getStyleClass.add("dialog-title")
     val _ = root.getChildren.addAll(
-      title,
+      header,
+      new Separator(),
       sectionLabel("PLAYERS"),
-      playerGrid,
+      whiteCard,
+      blackCard,
       new Separator(),
       sectionLabel("TIME CONTROL"),
       clockCombo,
@@ -136,9 +136,48 @@ object NewGameDialog:
     )
     root.setPadding(new Insets(20.0))
 
-    dialog.setScene(new Scene(root, 440.0, Region.USE_COMPUTED_SIZE))
-    dialog.setMinWidth(440.0)
+    dialog.setScene(new Scene(root, 460.0, Region.USE_COMPUTED_SIZE))
+    dialog.setMinWidth(460.0)
     dialog
+
+  private def buildHeader(): HBox =
+    val titleLabel = new Label("New Game")
+    titleLabel.getStyleClass.add("dialog-title")
+    val header = new HBox(12.0)
+    header.setAlignment(Pos.CENTER_LEFT)
+    val logoStream = getClass.getResourceAsStream("/images/maiChess_logo.png")
+    if logoStream != null then
+      val logo = new ImageView(new Image(logoStream))
+      logo.setFitHeight(40.0)
+      logo.setPreserveRatio(true)
+      val _ = header.getChildren.addAll(logo, titleLabel)
+    else
+      val _ = header.getChildren.add(titleLabel)
+    header
+
+  private def buildPlayerCard(
+    pieceIcon:  String,
+    colorLabel: String,
+    nameField:  TextField,
+    botCombo:   ComboBox[String],
+    styleClass: String
+  ): VBox =
+    val iconLabel  = new Label(pieceIcon)
+    iconLabel.getStyleClass.add("player-card-icon")
+    val colorLbl   = new Label(colorLabel)
+    colorLbl.getStyleClass.add("player-card-color")
+    val headerRow  = new HBox(8.0, iconLabel, colorLbl)
+    headerRow.setAlignment(Pos.CENTER_LEFT)
+
+    HBox.setHgrow(nameField, Priority.ALWAYS)
+    HBox.setHgrow(botCombo,  Priority.ALWAYS)
+    val fieldsRow = new HBox(8.0, nameField, botCombo)
+    fieldsRow.setAlignment(Pos.CENTER_LEFT)
+
+    val card = new VBox(8.0, headerRow, fieldsRow)
+    card.getStyleClass.addAll("player-card", styleClass)
+    card.setPadding(new Insets(10.0, 14.0, 10.0, 14.0))
+    card
 
   private def buildBotCombo(): ComboBox[String] =
     val combo = new ComboBox[String]()
@@ -179,12 +218,6 @@ object NewGameDialog:
         if ms <= 0L then None else Some(ClockConfig(ms, incMs))
       case label =>
         presets.find(_.label == label).map(p => ClockConfig(p.ms, p.incMs))
-
-  private def addRow(grid: GridPane, row: Int, label: Label, field: TextField, combo: ComboBox[String]): Unit =
-    val _ = grid.add(label, 0, row)
-    val _ = grid.add(field, 1, row)
-    val _ = grid.add(combo, 2, row)
-    GridPane.setValignment(label, VPos.CENTER)
 
   private def sectionLabel(text: String): Label =
     val l = new Label(text)

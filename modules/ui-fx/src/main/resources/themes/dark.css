@@ -168,5 +168,24 @@
     -fx-background-color: #45475a;
 }
 
+/* ── Player cards (New Game dialog) ──────────────────────────────────── */
+.player-card {
+    -fx-background-color: #2a2a3e;
+    -fx-background-radius: 8;
+    -fx-border-radius:     8;
+    -fx-border-width:      0 0 0 4;
+}
+.player-card.white-card { -fx-border-color: #e8e8e8; }
+.player-card.black-card  { -fx-border-color: #45475a; }
+.player-card-icon {
+    -fx-font-size:   22px;
+    -fx-text-fill:   #cdd6f4;
+}
+.player-card-color {
+    -fx-font-size:   11px;
+    -fx-font-weight: bold;
+    -fx-text-fill:   #a6adc8;
+}
+
 /* ── Separator ───────────────────────────────────────────────────────── */
 .separator .line { -fx-border-color: #313244; }

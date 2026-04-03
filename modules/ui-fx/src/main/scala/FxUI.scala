@@ -40,21 +40,23 @@ object FxUI:
     thinkingAnim.setCycleCount(Animation.INDEFINITE)
 
     // ── Pause button ─────────────────────────────────────────────────────
-    val pauseBtn = new Button("\u23f8  Pause")
+    val pauseBtn = new Button("\u23f8")
     pauseBtn.setId("pause-btn")
     pauseBtn.getStyleClass.add("toolbar-btn")
+    pauseBtn.setTooltip(new Tooltip("Pause / Resume [U]"))
 
     def syncPauseButton(): Unit =
       if model.isPausedState then
-        pauseBtn.setText("\u25b6  Resume")
+        pauseBtn.setText("\u25b6")
         pauseBtn.getStyleClass.add("paused")
       else
-        pauseBtn.setText("\u23f8  Pause")
+        pauseBtn.setText("\u23f8")
         pauseBtn.getStyleClass.remove("paused")
 
     def doPause(): Unit =
       if model.isPausedState then model.resume() else model.pause()
       syncPauseButton()
+      fullRefresh(model.state)
 
     // ── Refresh logic ────────────────────────────────────────────────────
     def refresh(s: SharedGameModel.State): Unit =
@@ -77,12 +79,14 @@ object FxUI:
       side.update(s.game, s.moveHistory, cw, cb)
       side.setPlayerNames(s.metadata.white, s.metadata.black)
       side.updateClock(s.clock)
+      if s.change == Change.Reset then side.hideResult()
       handleClockFlag(s)
       val clockFlagged = s.clock.flatMap(_.flagged).isDefined
       val isOver       = model.gameResult().isDefined || clockFlagged
-      val isThinking   = !isOver && model.botFor(turn).isDefined
+      val isPaused     = model.isPausedState
+      val isThinking   = !isOver && !isPaused && model.botFor(turn).isDefined
       model.gameResult().foreach(r => side.showResult(resultMessage(r)))
-      board.setBoardEnabled(!isOver && !isThinking)
+      board.setBoardEnabled(!isOver && !isThinking && !isPaused)
       if isThinking then
         thinkingLabel.setVisible(true)
         if thinkingAnim.getStatus != Animation.Status.RUNNING then thinkingAnim.play()
@@ -123,7 +127,7 @@ object FxUI:
         case nm: NormalMove if nm.promotion.isDefined =>
           nm.copy(promotion = Some(askPromotion()))
         case _ => move
-      val _ = model.applyMove(finalMove, SharedGameModel.moveNotation(finalMove))
+      val _ = model.applyMove(finalMove)
     }
 
     // ── Game actions ─────────────────────────────────────────────────────
@@ -181,23 +185,26 @@ object FxUI:
     )
 
     def toolbarBtn(kb: KeyBinding, action: () => Unit): Button =
-      val b = new Button(kb.buttonLabel)
+      val b = new Button(kb.icon)
       b.getStyleClass.add("toolbar-btn")
+      b.setTooltip(new Tooltip(kb.tooltipText))
       b.setOnAction(_ => action())
       b
 
     val fenMenu = new MenuButton("FEN \u25be")
     fenMenu.getStyleClass.add("toolbar-btn")
+    fenMenu.setTooltip(new Tooltip("FEN Import / Export"))
     val _ = fenMenu.getItems.addAll(
-      menuItem("Import FEN (F)", () => doImportFen()),
-      menuItem("Export FEN (E)", () => doExportFen())
+      menuItem("Import FEN", () => doImportFen()),
+      menuItem("Export FEN", () => doExportFen())
     )
 
     val pgnMenu = new MenuButton("PGN \u25be")
     pgnMenu.getStyleClass.add("toolbar-btn")
+    pgnMenu.setTooltip(new Tooltip("PGN Import / Export"))
     val _ = pgnMenu.getItems.addAll(
-      menuItem("Import PGN (P)", () => doImportPgn()),
-      menuItem("Export PGN (O)", () => doExportPgn())
+      menuItem("Import PGN", () => doImportPgn()),
+      menuItem("Export PGN", () => doExportPgn())
     )
 
     pauseBtn.setOnAction(_ => doPause())
@@ -245,6 +252,9 @@ object FxUI:
     stage.setTitle("MaiChess")
     stage.setMinWidth(830.0)
     stage.setMinHeight(660.0)
+    val iconStream = getClass.getResourceAsStream("/images/maiChess_Icon.png")
+    if iconStream != null then
+      stage.getIcons.add(new javafx.scene.image.Image(iconStream))
     stage.setScene(scene)
     stage.setOnCloseRequest { (_: WindowEvent) =>
       model.shutdown()
