@@ -1,11 +1,10 @@
 package org.maichess.mono.uifx
 
-import javafx.geometry.{Insets, Pos}
+import javafx.geometry.Pos
 import javafx.scene.control.{Label, ListView, Separator}
 import javafx.scene.layout.{Priority, VBox}
 import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
-import org.maichess.mono.rules.StandardRules
 
 /** Right-hand panel: Black player strip → move history → result area → White player strip. */
 class FxSidePanel:

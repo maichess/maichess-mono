@@ -4,7 +4,7 @@ import com.googlecode.lanterna.gui2.{Direction => LDirection, Label, LinearLayou
 import org.maichess.mono.engine.GameState
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
-import org.maichess.mono.uifx.{ClockState, SharedGameModel, *}
+import org.maichess.mono.uifx.ClockState
 
 object SidePanel:
 

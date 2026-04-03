@@ -6,9 +6,9 @@ import com.googlecode.lanterna.screen.TerminalScreen
 import com.googlecode.lanterna.terminal.{DefaultTerminalFactory, ExtendedTerminal, MouseCaptureMode}
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration
 import java.awt.Font
-import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, Pgn}
+import org.maichess.mono.engine.{DrawReason, GameController, GameResult}
 import org.maichess.mono.model.*
-import org.maichess.mono.rules.{StandardRules, Situation}
+import org.maichess.mono.rules.StandardRules
 import org.maichess.mono.uifx.{Change, FxUI, Keymap, SharedGameModel}
 
 object LanternaUI:

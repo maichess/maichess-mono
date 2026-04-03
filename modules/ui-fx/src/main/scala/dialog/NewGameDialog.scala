@@ -1,13 +1,13 @@
 package org.maichess.mono.uifx
 
-import javafx.geometry.{Insets, Pos, VPos}
+import javafx.geometry.{Insets, Pos}
 import javafx.scene.Scene
 import javafx.scene.control.*
 import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.*
 import javafx.stage.{Modality, Stage}
 import java.util.concurrent.atomic.AtomicReference
-import org.maichess.mono.bots.{Bot, BotRegistry}
+import org.maichess.mono.bots.BotRegistry
 
 /** A single, combined dialog for new-game setup: player names, bot selection, and time control. */
 object NewGameDialog:

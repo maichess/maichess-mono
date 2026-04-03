@@ -16,7 +16,11 @@
       "Bash(sbt clean:*)",
       "Bash(sbt \"bots/compile\" \"uiFx/compile\" \"uiText/compile\")",
       "Bash(sbt \"test\")",
-      "Bash(sbt \"coverage; test; coverageReport\")"
+      "Bash(sbt \"coverage; test; coverageReport\")",
+      "Bash(sbt \"compile\")",
+      "Bash(sbt \"ui-text/compile\")",
+      "Bash(sbt \"uiText/compile\" -- -deprecation)",
+      "Bash(sbt \"set ThisBuild / scalacOptions += \\\\\"-deprecation\\\\\"\" \"compile\")"
     ]
   }
 }

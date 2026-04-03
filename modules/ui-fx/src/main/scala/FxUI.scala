@@ -10,7 +10,6 @@ import javafx.scene.layout.*
 import javafx.stage.{Modality, Stage, WindowEvent}
 import javafx.util.Duration
 import java.util.concurrent.atomic.AtomicReference
-import org.maichess.mono.bots.{Bot, BotRegistry}
 import org.maichess.mono.engine.{DrawReason, GameResult, GameState}
 import org.maichess.mono.model.*
 
