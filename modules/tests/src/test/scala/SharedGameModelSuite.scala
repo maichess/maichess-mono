@@ -1,13 +1,15 @@
 package org.maichess.mono.tests
 
 import munit.FunSuite
-import org.maichess.mono.engine.{GameController, PgnMetadata}
+import org.maichess.mono.engine.{Fen, GameController, Pgn, PgnMetadata, San}
 import org.maichess.mono.rules.StandardRules
 import org.maichess.mono.uifx.{ClockConfig, SharedGameModel}
 
 class SharedGameModelSuite extends FunSuite:
 
-  def makeModel(): SharedGameModel = new SharedGameModel(new GameController(StandardRules))
+  def makeModel(): SharedGameModel =
+    val san = new San()
+    new SharedGameModel(new GameController(StandardRules), new Fen(), san, new Pgn(san))
 
   test("importPgn empty game produces empty moveHistory"):
     val model = makeModel()

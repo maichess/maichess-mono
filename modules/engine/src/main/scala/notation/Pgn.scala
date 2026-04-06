@@ -3,7 +3,7 @@ package org.maichess.mono.engine
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.{RuleSet, Situation}
 
-object Pgn:
+class Pgn(san: SanCodec) extends PgnCodec:
 
   /** Encodes the full game history as a PGN string using the supplied metadata for the seven-tag roster. */
   def encode(state: GameState, ruleSet: RuleSet, metadata: PgnMetadata): String =
@@ -29,7 +29,7 @@ object Pgn:
     val ctrl         = new GameController(ruleSet)
     tokens.foldLeft(Right(initial): Either[String, GameState]) {
       case (Right(s), token) =>
-        San.decode(s.current, token, ruleSet) match
+        san.decode(s.current, token, ruleSet) match
           case Right(move) => Right(ctrl.advance(s, move))
           case Left(err)   => Left("Cannot parse SAN '" + token + "': " + err)
       case (left, _) => left
@@ -46,7 +46,7 @@ object Pgn:
     val situations = (state.current :: state.history).reverse
     val tokens = situations.zip(situations.drop(1)).flatMap { case (before, after) =>
       val move   = findMove(before, after, ruleSet)
-      val sanStr = move.fold("?")(m => San.encode(before, m, after, ruleSet))
+      val sanStr = move.fold("?")(m => san.encode(before, m, after, ruleSet))
       val num    = if before.turn == Color.White then List(before.fullMoveNumber.toString + ".") else Nil
       num :+ sanStr
     }

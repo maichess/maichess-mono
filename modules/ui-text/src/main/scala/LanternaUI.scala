@@ -6,7 +6,7 @@ import com.googlecode.lanterna.screen.TerminalScreen
 import com.googlecode.lanterna.terminal.{DefaultTerminalFactory, ExtendedTerminal, MouseCaptureMode}
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration
 import java.awt.Font
-import org.maichess.mono.engine.{DrawReason, GameController, GameResult}
+import org.maichess.mono.engine.{DrawReason, Fen, GameController, GameResult, Pgn, San}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
 import org.maichess.mono.uifx.{Change, FxUI, Keymap, SharedGameModel}
@@ -156,7 +156,8 @@ object LanternaUI:
   java.util.logging.Logger.getLogger("com.sun.glass").setLevel(java.util.logging.Level.OFF)
 
   val ctrl  = new GameController(StandardRules)
-  val model = new SharedGameModel(ctrl)
+  val san   = new San()
+  val model = new SharedGameModel(ctrl, new Fen(), san, new Pgn(san))
 
   javafx.application.Platform.setImplicitExit(false)
   val fxReady = new java.util.concurrent.CountDownLatch(1)

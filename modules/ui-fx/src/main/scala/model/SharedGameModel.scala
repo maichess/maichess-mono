@@ -2,14 +2,14 @@ package org.maichess.mono.uifx
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.maichess.mono.bots.Bot
-import org.maichess.mono.engine.{Fen, GameController, GameResult, GameState, IllegalMove, Pgn, PgnMetadata, San}
+import org.maichess.mono.engine.{FenCodec, GameController, GameResult, GameState, IllegalMove, PgnCodec, PgnMetadata, SanCodec}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
 
 enum Change:
   case Move, Undo, Redo, Reset, ClockTick
 
-class SharedGameModel(ctrl: GameController):
+class SharedGameModel(ctrl: GameController, fenCodec: FenCodec, sanCodec: SanCodec, pgnCodec: PgnCodec):
   private var current: SharedGameModel.State =
     SharedGameModel.State(ctrl.newGame(), Nil, Nil, Change.Reset, PgnMetadata.default, None)
   private var observers:         List[SharedGameModel.State => Unit] = Nil
@@ -65,7 +65,7 @@ class SharedGameModel(ctrl: GameController):
           case Right(g) =>
             val isFirstMove = g.history.sizeIs == 1
             val newTurn     = g.current.turn
-            val notation    = San.encode(current.game.current, move, g.current, StandardRules)
+            val notation    = sanCodec.encode(current.game.current, move, g.current, StandardRules)
             val gameOver    = ctrl.gameResult(g).isDefined
             clock.foreach { c =>
               if isFirstMove then c.start(newTurn) else c.press(newTurn)
@@ -174,7 +174,7 @@ class SharedGameModel(ctrl: GameController):
     toNotify.foreach { (s, obs) => obs.foreach(_(s)) }
 
   def importFen(fen: String): Either[String, Unit] =
-    Fen.decode(fen) match
+    fenCodec.decode(fen) match
       case Right(sit) =>
         val clk = synchronized { val c = clock; clock = None; c }
         clk.foreach(_.stop())
@@ -185,7 +185,7 @@ class SharedGameModel(ctrl: GameController):
       case Left(err) => Left(err)
 
   def importPgn(pgn: String): Either[String, Unit] =
-    Pgn.decode(pgn.trim, StandardRules) match
+    pgnCodec.decode(pgn.trim, StandardRules) match
       case Right((g, meta)) =>
         val clk = synchronized { val c = clock; clock = None; c }
         clk.foreach(_.stop())
@@ -200,7 +200,7 @@ class SharedGameModel(ctrl: GameController):
     situations.zip(situations.drop(1)).flatMap { case (before, after) =>
       StandardRules.allLegalMoves(before)
         .find(m => before.board.applyMove(m) == after.board)
-        .map(m => San.encode(before, m, after, StandardRules))
+        .map(m => sanCodec.encode(before, m, after, StandardRules))
     }
 
   def resign(): Unit =
@@ -210,8 +210,8 @@ class SharedGameModel(ctrl: GameController):
 
   def botFor(color: Color): Option[Bot]  = synchronized { if color == Color.White then whiteBot else blackBot }
   def hasBot: Boolean                    = synchronized { whiteBot.isDefined || blackBot.isDefined }
-  def exportFen(): String                = Fen.encode(state.game.current)
-  def exportPgn(): String                = Pgn.encode(state.game, StandardRules, state.metadata)
+  def exportFen(): String                = fenCodec.encode(state.game.current)
+  def exportPgn(): String                = pgnCodec.encode(state.game, StandardRules, state.metadata)
   def gameResult(): Option[GameResult]   = ctrl.gameResult(state.game)
 
 object SharedGameModel:

@@ -1,7 +1,7 @@
 package org.maichess.mono.bots.engine
 
 import org.maichess.mono.bots.Bot
-import org.maichess.mono.engine.{Fen, GameState}
+import org.maichess.mono.engine.{FenCodec, GameState}
 import org.maichess.mono.model
 import org.maichess.mono.rules.Situation
 
@@ -9,11 +9,11 @@ import org.maichess.mono.rules.Situation
 // Bridges GameState → Position via FEN, delegates to Search.bestMove,
 // then maps the engine move back to the rules-layer Move hierarchy.
 @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-class UciBot(timeLimitMs: Long) extends Bot:
+class UciBot(timeLimitMs: Long, fenCodec: FenCodec) extends Bot:
   val name: String = "UCI " + (timeLimitMs / 1000).toString + "s"
 
   def chooseMove(state: GameState): Option[model.Move] =
-    val pos = Position.fromFen(Fen.encode(state.current))
+    val pos = Position.fromFen(fenCodec.encode(state.current))
     val em  = Search.bestMove(pos, timeLimitMs = timeLimitMs)
     if em == Move.None then None else Some(toRulesMove(em, state.current))
 

@@ -4,7 +4,7 @@ import org.maichess.mono.model.*
 import org.maichess.mono.rules.{RuleSet, Situation}
 
 /** Standard Algebraic Notation encoder/decoder. */
-object San:
+class San extends SanCodec:
 
   /** Encodes a move as SAN given the situation *before* the move and the resulting situation. */
   def encode(situation: Situation, move: Move, after: Situation, ruleSet: RuleSet): String =

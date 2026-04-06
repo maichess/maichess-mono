@@ -37,6 +37,9 @@ lazy val engine = (project in file("modules/engine"))
   .settings(moduleSettings("org.maichess.mono.engine"): _*)
   .settings(coverageSettings: _*)
   .settings(name := "maichess-engine")
+  .settings(
+    libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1"
+  )
 
 lazy val bots = (project in file("modules/bots"))
   .dependsOn(engine)

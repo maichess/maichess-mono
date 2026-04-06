@@ -3,7 +3,7 @@ package org.maichess.mono.engine
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.{CastlingRights, Situation}
 
-object Fen:
+class Fen extends FenCodec:
 
   def encode(situation: Situation): String =
     val board    = encodeBoard(situation.board)
