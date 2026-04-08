@@ -38,7 +38,8 @@ lazy val engine = (project in file("modules/engine"))
   .settings(coverageSettings: _*)
   .settings(name := "maichess-engine")
   .settings(
-    libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1"
+    libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
+    libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0"
   )
 
 lazy val bots = (project in file("modules/bots"))

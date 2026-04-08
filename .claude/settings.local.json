@@ -22,7 +22,8 @@
       "Bash(sbt \"uiText/compile\" -- -deprecation)",
       "Bash(sbt \"set ThisBuild / scalacOptions += \\\\\"-deprecation\\\\\"\" \"compile\")",
       "mcp__context7__query-docs",
-      "Bash(sbt \"engine/compile\")"
+      "Bash(sbt \"engine/compile\")",
+      "mcp__context7__resolve-library-id"
     ]
   }
 }
