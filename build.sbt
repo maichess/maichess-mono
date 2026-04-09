@@ -90,6 +90,25 @@ lazy val uiText = (project in file("modules/ui-text"))
     }
   )
 
+lazy val restApi = (project in file("modules/rest-api"))
+  .dependsOn(bots, uiFx)
+  .settings(moduleSettings("org.maichess.mono.api"): _*)
+  .settings(coverageEnabled  := false)
+  .settings(wartremoverErrors := Nil, wartremoverWarnings := Nil)
+  .settings(name := "maichess-rest-api")
+  .settings(run / fork := true)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.http4s" %% "http4s-ember-server" % "0.23.30",
+      "org.http4s" %% "http4s-dsl"          % "0.23.30",
+      "org.http4s" %% "http4s-circe"        % "0.23.30",
+      "io.circe"   %% "circe-core"          % "0.14.15",
+      "io.circe"   %% "circe-generic"       % "0.14.15",
+      "io.circe"   %% "circe-parser"        % "0.14.15",
+      "org.slf4j"   % "slf4j-simple"        % "2.0.16"
+    )
+  )
+
 lazy val tests = (project in file("modules/tests"))
   .dependsOn(model, rules, engine, bots, uiText)
   .settings(moduleSettings("org.maichess.mono.tests"): _*)
@@ -108,7 +127,7 @@ lazy val tests = (project in file("modules/tests"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(model, rules, engine, bots, uiFx, uiText, tests)
+  .aggregate(model, rules, engine, bots, uiFx, uiText, restApi, tests)
   .settings(
     name := "maichess-mono",
     Compile / unmanagedSourceDirectories := Nil,

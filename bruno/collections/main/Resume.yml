@@ -1,0 +1,15 @@
+info:
+  name: Resume
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{API_URL}}/game/resume"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

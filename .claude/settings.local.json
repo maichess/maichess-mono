@@ -20,7 +20,8 @@
       "Bash(sbt \"compile\")",
       "Bash(sbt \"ui-text/compile\")",
       "Bash(sbt \"uiText/compile\" -- -deprecation)",
-      "Bash(sbt \"set ThisBuild / scalacOptions += \\\\\"-deprecation\\\\\"\" \"compile\")"
+      "Bash(sbt \"set ThisBuild / scalacOptions += \\\\\"-deprecation\\\\\"\" \"compile\")",
+      "Bash(sbt:*)"
     ]
   }
 }

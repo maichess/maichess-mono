@@ -1,0 +1,21 @@
+info:
+  name: Import PGN
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{API_URL}}/game/pgn"
+  body:
+    type: json
+    data: |-
+      {
+        "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"1\"]\n[White \"White\"]\n[Black \"Black\"]\n[Result \"*\"]\n\n *"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

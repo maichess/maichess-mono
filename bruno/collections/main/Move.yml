@@ -1,0 +1,22 @@
+info:
+  name: Move
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{API_URL}}/game/move"
+  body:
+    type: json
+    data: |-
+      {
+        "from": "e2",
+        "to": "e3"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,15 @@
+info:
+  name: Undo
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{API_URL}}/game/undo"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

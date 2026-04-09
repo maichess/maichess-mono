@@ -1,0 +1,15 @@
+info:
+  name: Resign
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{API_URL}}/game/resign"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
