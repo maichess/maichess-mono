@@ -9,6 +9,8 @@ import java.awt.Font
 import org.maichess.mono.engine.{DrawReason, GameController, GameResult}
 import org.maichess.mono.model.*
 import org.maichess.mono.rules.StandardRules
+import org.maichess.mono.api.Server
+import org.maichess.mono.api.bridge.GameHub
 import org.maichess.mono.uifx.{Change, FxUI, Keymap, SharedGameModel}
 
 object LanternaUI:
@@ -157,6 +159,8 @@ object LanternaUI:
 
   val ctrl  = new GameController(StandardRules)
   val model = new SharedGameModel(ctrl)
+
+  Server.startBackground(new GameHub(model))
 
   javafx.application.Platform.setImplicitExit(false)
   val fxReady = new java.util.concurrent.CountDownLatch(1)

@@ -17,3 +17,7 @@ object Server:
       .withPort(port"5005")
       .withHttpApp(routes.orNotFound)
       .build
+
+  def startBackground(hub: GameHub): Unit =
+    import cats.effect.unsafe.implicits.global
+    make(hub).use(_ => IO.never).unsafeRunAndForget()

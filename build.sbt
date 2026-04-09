@@ -67,7 +67,7 @@ lazy val uiFx = (project in file("modules/ui-fx"))
   )
 
 lazy val uiText = (project in file("modules/ui-text"))
-  .dependsOn(bots, uiFx)
+  .dependsOn(bots, uiFx, restApi)
   .settings(moduleSettings("org.maichess.mono.ui"): _*)
   .settings(coverageEnabled := false)
   .settings(name := "maichess-ui-text")
