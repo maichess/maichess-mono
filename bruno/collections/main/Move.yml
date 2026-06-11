@@ -10,8 +10,8 @@ http:
     type: json
     data: |-
       {
-        "from": "e2",
-        "to": "e3"
+        "from": "a2",
+        "to": "a3"
       }
   auth: inherit
 

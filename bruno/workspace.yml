@@ -4,8 +4,6 @@ info:
   type: workspace
 
 collections:
-  - name: "main"
-    path: "collections/main"
 
 specs:
 
